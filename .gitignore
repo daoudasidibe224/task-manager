@@ -1,0 +1,60 @@
+# --- NODE & DEPENDENCIES ---
+node_modules/
+
+# --- BUILD OUTPUTS ---
+dist/
+.output/
+.nuxt/
+.nitro/
+.cache/
+.data/
+build/
+
+# --- LOGS ---
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# --- OS & SYSTEM FILES ---
+.DS_Store
+.fleet
+
+# --- ENV FILES ---
+.env
+.env.*
+!.env.example
+
+# --- TEMP FILES ---
+.temp/
+.tmp/
+*.seed
+pids/
+*.pid
+*.pid.lock
+
+# --- TESTS ---
+coverage/
+.nyc_output/
+
+# --- DIAGNOSTIC REPORTS ---
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# --- IDE CONFIGS ---
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
