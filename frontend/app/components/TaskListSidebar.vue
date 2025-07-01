@@ -41,7 +41,7 @@ function createNewList() {
 
 <template>
   <div
-    class="bg-white border-r border-gray-200 transition-all duration-300 flex-shrink-0"
+    class="card transition-all duration-300 flex-shrink-0"
     :class="collapsed ? 'w-16' : 'w-80'"
   >
     <!-- Header Sidebar -->
@@ -53,7 +53,7 @@ function createNewList() {
         <UButton
           v-if="!collapsed"
           size="sm"
-          variant="soft"
+          class="btn-gradient shadow-sm"
           icon="i-heroicons-plus"
           @click="createNewList"
         >
@@ -96,9 +96,9 @@ function createNewList() {
           <UButton
             variant="ghost"
             :class="[
-              'w-full justify-start mb-1 relative',
+              'w-full justify-start mb-1 relative card-hover',
               taskListStore.selected?.id === list.id
-                ? 'bg-blue-50 text-blue-700'
+                ? 'border-l-4 border-violet-600 bg-violet-50/40 text-violet-700'
                 : '',
             ]"
             :title="collapsed ? list.name : undefined"

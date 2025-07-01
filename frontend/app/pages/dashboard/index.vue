@@ -155,7 +155,7 @@
             v-if="
               lists.length === 0 && !sidebarCollapsed && !taskListStore.loading
             "
-            class="text-center text-gray-500 py-8"
+            class="text-center text-gray-500 py-8 card border-dashed bg-gray-100/60"
           >
             <svg
               class="w-8 h-8 mx-auto mb-2 text-gray-300"
@@ -187,11 +187,9 @@
             <ClientOnly>
               <UButton
                 v-if="selectedList"
-                color="primary"
-                variant="solid"
+                class="btn-gradient"
                 size="md"
                 icon="i-heroicons-plus"
-                class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-200"
                 @click="showCreateTaskModal = true"
               >
                 Nouvelle tâche
@@ -271,7 +269,7 @@
                   <div
                     v-for="task in pendingTasks"
                     :key="task.id"
-                    class="flex items-center p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-all duration-200 cursor-pointer group"
+                    class="flex items-center p-4 card card-hover cursor-pointer group"
                     :class="{
                       'ring-2 ring-blue-500 shadow-sm':
                         selectedTask?.id === task.id,
@@ -364,7 +362,7 @@
                   <div
                     v-for="task in completedTasks"
                     :key="task.id"
-                    class="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg transition-all duration-200"
+                    class="flex items-center p-4 card card-hover bg-green-50 border-green-200"
                   >
                     <button
                       class="mr-4 text-green-600 hover:text-green-800 transition-colors"
