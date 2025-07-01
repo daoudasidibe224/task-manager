@@ -2,13 +2,15 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
-import cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
+import helmet from 'helmet';
 import {
   appConfig,
   corsConfig,
   createSwaggerConfig,
   validationConfig,
+  helmetConfig,
 } from './config';
 
 dotenv.config();
@@ -18,6 +20,9 @@ async function bootstrap() {
 
   // Configuration du préfixe global
   app.setGlobalPrefix(appConfig.globalPrefix);
+
+  // Configuration de Helmet
+  app.use(helmet(helmetConfig));
 
   // Configuration des cookies
   app.use(cookieParser());
