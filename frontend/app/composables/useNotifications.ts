@@ -33,7 +33,7 @@ export const useNotifications = () => {
     toast.add({
       title: options.title || "Succès",
       description: message,
-      color: "green",
+      color: "primary",
       icon: "i-heroicons-check-circle",
       timeout: options.timeout || 5000,
       ...options,
@@ -50,7 +50,7 @@ export const useNotifications = () => {
     toast.add({
       title: options.title || "Erreur",
       description: message,
-      color: "red",
+      color: "primary",
       icon: "i-heroicons-x-circle",
       timeout: options.timeout || 7000,
       ...options,

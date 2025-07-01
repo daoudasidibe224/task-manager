@@ -14,7 +14,15 @@ export default {
     "./nuxt.config.{js,ts}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        // Couleurs personnalisées si besoin
+      },
+      gradientColorStops: {
+        "primary-from": "#7C3AED",
+        "primary-to": "#3B82F6",
+      },
+    },
   },
   plugins: [forms, typography, aspectRatio],
 } satisfies Config;

@@ -3,7 +3,7 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-05-15",
   devtools: { enabled: true },
   modules: ["@nuxt/eslint", "@nuxt/icon", "@nuxt/ui", "@pinia/nuxt"],
-  css: ["~/assets/css/main.css"],
+  css: ["~/assets/css/main.css", "~/assets/css/theme.css"],
   pinia: {
     storesDirs: ["~/stores/**"],
   },
