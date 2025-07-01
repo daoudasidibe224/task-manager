@@ -100,14 +100,20 @@ export const useNotifications = () => {
     }
 
     // Fallback sur les messages d'erreur standards par code de statut
+    if (fetchError.statusCode === 400) {
+      return "Données invalides. Merci de vérifier les champs du formulaire.";
+    }
     if (fetchError.statusCode === 401) {
-      return "Vous n'êtes pas autorisé à effectuer cette action";
+      return "Email ou mot de passe incorrect";
     }
     if (fetchError.statusCode === 403) {
       return "Accès interdit";
     }
     if (fetchError.statusCode === 404) {
       return "Ressource non trouvée";
+    }
+    if (fetchError.statusCode === 409) {
+      return "Cet email est déjà utilisé";
     }
     if (fetchError.statusCode === 500) {
       return "Erreur interne du serveur";

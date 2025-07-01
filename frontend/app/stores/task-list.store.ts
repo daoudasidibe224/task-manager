@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { nextTick } from "vue";
-import { useTaskStore } from "./task.store";
 import type { TaskList, CreateTaskListDto, UpdateTaskListDto } from "~/types";
 
 interface TaskListState {
@@ -10,182 +9,236 @@ interface TaskListState {
   error: string | null;
 }
 
-export const useTaskListStore = defineStore("taskList", {
-  state: (): TaskListState => ({
+export const useTaskListStore = defineStore("taskList", () => {
+  const state = reactive<TaskListState>({
     taskLists: [],
     selectedTaskList: null,
     loading: false,
     error: null,
-  }),
+  });
 
-  getters: {
-    lists: (state) => state.taskLists,
-    selected: (state) => state.selectedTaskList,
-  },
+  const lists = computed(() => state.taskLists);
+  const selected = computed(() => state.selectedTaskList);
 
-  actions: {
-    async fetchAllTaskLists() {
-      this.loading = true;
-      this.error = null;
-      const { get } = useApi();
-      const { withNotifications } = useNotifications();
+  function validatePersistedState() {
+    try {
+      state.selectedTaskList = null;
+      state.taskLists = state.taskLists.filter(
+        (list) =>
+          list &&
+          typeof list.id === "string" &&
+          typeof list.name === "string" &&
+          list.id.length > 10 &&
+          !list.id.includes("undefined") &&
+          !list.id.includes("null") &&
+          !list.id.includes("cmckccd4w0002") &&
+          list.name.trim().length > 0
+      );
+    } catch {
+      state.taskLists = [];
+      state.selectedTaskList = null;
+    }
+  }
 
-      try {
-        const response = await withNotifications(
-          () => get<TaskList[]>("task-lists"),
-          { hideSuccess: true }
-        );
-        if (response?.success && response.data) {
-          this.taskLists = response.data;
+  async function fetchAllTaskLists() {
+    state.loading = true;
+    state.error = null;
+    const { get } = useApi();
+    const { withNotifications } = useNotifications();
+
+    try {
+      const response = await withNotifications(
+        () => get<TaskList[]>("task-lists"),
+        { hideSuccess: true }
+      );
+      if (response?.success && response.data) {
+        state.taskLists = response.data;
+        state.selectedTaskList = null;
+      } else {
+        state.taskLists = [];
+        state.selectedTaskList = null;
+      }
+    } catch {
+      state.error = "Erreur lors de la récupération des listes de tâches.";
+      state.taskLists = [];
+      state.selectedTaskList = null;
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  async function fetchTaskListById(id: string) {
+    if (
+      !id ||
+      typeof id !== "string" ||
+      id.trim() === "" ||
+      id.length < 10 ||
+      id.includes("cmckccd4w0002")
+    ) {
+      state.selectedTaskList = null;
+      return;
+    }
+
+    state.loading = true;
+    state.error = null;
+    const { get } = useApi();
+    const { withNotifications } = useNotifications();
+
+    try {
+      const response = await withNotifications(
+        () => get<TaskList>(`task-lists/${id}`),
+        { hideSuccess: true }
+      );
+      if (response?.success && response.data) {
+        state.selectedTaskList = response.data;
+      } else {
+        state.selectedTaskList = null;
+      }
+    } catch {
+      state.error = "Erreur lors de la récupération de la liste de tâches.";
+      state.selectedTaskList = null;
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  async function createTaskList(data: CreateTaskListDto) {
+    state.loading = true;
+    state.error = null;
+    const { post } = useApi();
+    const { withNotifications } = useNotifications();
+
+    try {
+      const response = await withNotifications(
+        () => post<TaskList>("task-lists", { ...data }),
+        { hideSuccess: false }
+      );
+
+      if (response?.success && response.data) {
+        state.taskLists.push(response.data);
+        return response.data;
+      }
+    } catch (err) {
+      state.error = "Erreur lors de la création de la liste de tâches.";
+      throw err;
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  async function updateTaskList(id: string, data: UpdateTaskListDto) {
+    state.loading = true;
+    state.error = null;
+    const { patch } = useApi();
+    const { withNotifications } = useNotifications();
+
+    try {
+      const response = await withNotifications(
+        () => patch<TaskList>(`task-lists/${id}`, { ...data }),
+        { hideSuccess: false }
+      );
+
+      if (response?.success && response.data) {
+        const updatedList = response.data;
+        const index = state.taskLists.findIndex((list) => list.id === id);
+        if (index !== -1) {
+          state.taskLists[index] = updatedList;
         }
-      } catch {
-        this.error = "Erreur lors de la récupération des listes de tâches.";
-        this.taskLists = [];
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async fetchTaskListById(id: string) {
-      this.loading = true;
-      this.error = null;
-      const { get } = useApi();
-      const { withNotifications } = useNotifications();
-
-      try {
-        const response = await withNotifications(
-          () => get<TaskList>(`task-lists/${id}`),
-          { hideSuccess: true }
-        );
-        if (response?.success && response.data) {
-          this.selectedTaskList = response.data;
+        if (state.selectedTaskList?.id === id) {
+          state.selectedTaskList = updatedList;
         }
-      } catch {
-        this.error = "Erreur lors de la récupération de la liste de tâches.";
-      } finally {
-        this.loading = false;
+        return updatedList;
       }
-    },
+    } catch (err) {
+      state.error = "Erreur lors de la mise à jour de la liste de tâches.";
+      throw err;
+    } finally {
+      state.loading = false;
+    }
+  }
 
-    async createTaskList(data: CreateTaskListDto) {
-      this.loading = true;
-      this.error = null;
-      const { post } = useApi();
-      const { withNotifications } = useNotifications();
+  async function deleteTaskList(id: string) {
+    if (!id || typeof id !== "string" || id.trim() === "") {
+      return;
+    }
 
-      try {
-        const response = await withNotifications(
-          () => post<TaskList>("task-lists", { ...data }),
-          { hideSuccess: false }
-        );
+    state.loading = true;
+    state.error = null;
+    const { del } = useApi();
+    const { withNotifications } = useNotifications();
 
-        if (response?.success && response.data) {
-          this.taskLists.push(response.data);
-          return response.data;
-        }
-      } catch (err) {
-        this.error = "Erreur lors de la création de la liste de tâches.";
-        throw err;
-      } finally {
-        this.loading = false;
-      }
-    },
+    const originalLists = [...state.taskLists];
+    const originalSelected = state.selectedTaskList;
 
-    async updateTaskList(id: string, data: UpdateTaskListDto) {
-      this.loading = true;
-      this.error = null;
-      const { patch } = useApi();
-      const { withNotifications } = useNotifications();
+    state.taskLists = state.taskLists.filter((list) => list.id !== id);
+    if (state.selectedTaskList?.id === id) {
+      state.selectedTaskList = null;
+    }
 
-      try {
-        const response = await withNotifications(
-          () => patch<TaskList>(`task-lists/${id}`, { ...data }),
-          { hideSuccess: false }
-        );
+    await nextTick();
 
-        if (response?.success && response.data) {
-          const updatedList = response.data;
-          const index = this.taskLists.findIndex((list) => list.id === id);
-          if (index !== -1) {
-            this.taskLists[index] = updatedList;
-          }
-          if (this.selectedTaskList?.id === id) {
-            this.selectedTaskList = updatedList;
-          }
-          return updatedList;
-        }
-      } catch (err) {
-        this.error = "Erreur lors de la mise à jour de la liste de tâches.";
-        throw err;
-      } finally {
-        this.loading = false;
-      }
-    },
+    try {
+      const response = await withNotifications(() => del(`task-lists/${id}`), {
+        hideSuccess: false,
+      });
 
-    async deleteTaskList(id: string) {
-      this.loading = true;
-      this.error = null;
-      const { del } = useApi();
-      const { withNotifications } = useNotifications();
-      const taskStore = useTaskStore();
-
-      // Suppression optimiste - supprimer de l'interface immédiatement
-      const originalLists = [...this.taskLists];
-      const originalSelected = this.selectedTaskList;
-
-      // Mise à jour optimiste de l'interface
-      this.taskLists = this.taskLists.filter((list) => list.id !== id);
-      if (this.selectedTaskList?.id === id) {
-        this.selectedTaskList = null;
+      if (!response || !response.success) {
+        state.taskLists = originalLists;
+        state.selectedTaskList = originalSelected;
+        state.error = "Échec de la suppression de la liste de tâches";
+        await nextTick();
+        return;
       }
 
-      // Forcer une mise à jour réactive
+      // Les tâches de la liste supprimée seront automatiquement
+      // nettoyées lors du prochain fetchTasks
+    } catch (err) {
+      state.taskLists = originalLists;
+      state.selectedTaskList = originalSelected;
+      state.error = "Erreur lors de la suppression de la liste de tâches.";
       await nextTick();
+      throw err;
+    } finally {
+      state.loading = false;
+      await nextTick();
+    }
+  }
 
-      try {
-        const response = await withNotifications(
-          () => del(`task-lists/${id}`),
-          {
-            hideSuccess: false,
-          }
-        );
+  function selectTaskList(list: TaskList | null) {
+    if (
+      list &&
+      (!list.id ||
+        typeof list.id !== "string" ||
+        list.id.length < 10 ||
+        list.id.includes("cmckccd4w0002"))
+    ) {
+      state.selectedTaskList = null;
+      return;
+    }
+    state.selectedTaskList = list;
+  }
 
-        // Vérifier que la suppression a bien réussi
-        if (!response || !response.success) {
-          // Restaurer l'état original si échec
-          this.taskLists = originalLists;
-          this.selectedTaskList = originalSelected;
-          this.error = "Échec de la suppression de la liste de tâches";
-          await nextTick(); // Forcer le re-rendu
-          return;
-        }
+  function resetState() {
+    state.taskLists = [];
+    state.selectedTaskList = null;
+    state.loading = false;
+    state.error = null;
+  }
 
-        // Nettoyer les tâches associées à cette liste du store des tâches
-        if (taskStore.tasks.some((task) => task.listId === id)) {
-          taskStore.tasks = taskStore.tasks.filter(
-            (task) => task.listId !== id
-          );
-        }
-
-        // Succès confirmé - l'interface est déjà à jour grâce à la mise à jour optimiste
-      } catch (err) {
-        // Restaurer l'état original en cas d'erreur
-        this.taskLists = originalLists;
-        this.selectedTaskList = originalSelected;
-        this.error = "Erreur lors de la suppression de la liste de tâches.";
-        await nextTick(); // Forcer le re-rendu
-
-        throw err;
-      } finally {
-        this.loading = false;
-        await nextTick(); // Forcer le re-rendu final
-      }
+  return {
+    ...toRefs(state),
+    lists,
+    selected,
+    validatePersistedState,
+    fetchAllTaskLists,
+    fetchTaskListById,
+    createTaskList,
+    updateTaskList,
+    deleteTaskList,
+    selectTaskList,
+    resetState,
+    $persist: {
+      pick: ["taskLists"],
     },
-
-    selectTaskList(list: TaskList | null) {
-      this.selectedTaskList = list;
-    },
-  },
-
-  persist: true,
+  };
 });

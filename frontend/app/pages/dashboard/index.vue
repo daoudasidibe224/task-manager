@@ -191,6 +191,7 @@
                 variant="solid"
                 size="md"
                 icon="i-heroicons-plus"
+                class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-200"
                 @click="showCreateTaskModal = true"
               >
                 Nouvelle tâche
@@ -198,7 +199,7 @@
             </ClientOnly>
 
             <UButton
-              color="neutral"
+              color="gray"
               variant="outline"
               size="md"
               icon="i-heroicons-arrow-right-on-rectangle"
@@ -407,7 +408,7 @@
                   {{ selectedTask.title }}
                 </h4>
                 <UBadge
-                  :color="selectedTask.completed ? 'success' : 'warning'"
+                  :color="selectedTask.completed ? 'green' : 'yellow'"
                   variant="subtle"
                 >
                   {{ selectedTask.completed ? "Terminée" : "En cours" }}
@@ -507,6 +508,7 @@ import { useTaskStore } from "~/stores/task.store";
 import { useAuthStore } from "~/stores/auth.store";
 import { useTasks } from "~/composables/useTasks";
 import type { Task, TaskList } from "~/types";
+import { useNotifications } from "~/composables/useNotifications";
 
 // Type pour les tâches avec propriétés mappées pour l'UI
 interface TaskWithMappedProps
@@ -569,7 +571,11 @@ const selectList = async (list: TaskList) => {
   try {
     await taskStore.fetchTasks({ listId: list.id });
   } catch {
-    // Gestion d'erreur déjà faite par le store
+    taskListStore.selectTaskList(null);
+    const { error: showError } = useNotifications();
+    showError("Impossible de charger les tâches de cette liste.", {
+      title: "Erreur de chargement",
+    });
   } finally {
     isLoadingTasks.value = false;
   }
@@ -689,9 +695,26 @@ const logout = async () => {
   await authStore.logout();
 };
 
-// Initialisation
+// Initialisation simplifiée
 onMounted(async () => {
-  await taskListStore.fetchAllTaskLists();
+  try {
+    // Validation et nettoyage de l'état persisté
+    taskListStore.validatePersistedState();
+
+    // Récupération des données fraîches
+    await taskListStore.fetchAllTaskLists();
+
+    // Initialisation de la subscription
+    taskStore.subscribeToTaskListChanges();
+
+    // S'assurer qu'aucune liste n'est sélectionnée par défaut
+    taskListStore.selectTaskList(null);
+  } catch {
+    const { error: showError } = useNotifications();
+    showError("Une erreur est survenue lors du chargement des données.", {
+      title: "Erreur",
+    });
+  }
 });
 </script>
 

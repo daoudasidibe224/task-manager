@@ -1,11 +1,11 @@
 <template>
-  <UApp>
+  <div>
     <NuxtLoadingIndicator color="primary" />
     <NuxtLayout>
-      <NuxtPage :transition="{ name: 'page', mode: 'out-in' }" />
+      <NuxtPage />
     </NuxtLayout>
-    <UToast />
-  </UApp>
+    <UNotifications class="fixed bottom-4 right-4 z-50 max-w-sm w-full" />
+  </div>
 </template>
 
 <style>

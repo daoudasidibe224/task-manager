@@ -50,9 +50,9 @@ function confirmDeleteTask() {
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-gray-800">Détails de la tâche</h3>
         <UButton
-          color="neutral"
-          variant="ghost"
-          size="sm"
+          color="gray"
+          variant="outline"
+          size="md"
           icon="i-heroicons-x-mark"
           @click="emit('close')"
         />
@@ -107,8 +107,8 @@ function confirmDeleteTask() {
     <!-- Footer avec bouton de suppression -->
     <div class="p-6 border-t border-gray-200">
       <UButton
-        color="error"
-        variant="soft"
+        color="red"
+        variant="solid"
         block
         icon="i-heroicons-trash"
         @click="confirmDeleteTask"

@@ -62,13 +62,9 @@ function close() {
                 {{ props.title }}
               </h3>
             </div>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-heroicons-x-mark-20-solid"
-              class="-my-1"
-              @click="close"
-            />
+            <UButton color="gray" variant="outline" size="md" @click="close">
+              Annuler
+            </UButton>
           </div>
 
           <!-- Content avec padding amélioré -->

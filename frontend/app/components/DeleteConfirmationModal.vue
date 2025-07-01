@@ -7,6 +7,8 @@ interface Props {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmColor?: string;
+  loading?: boolean;
 }
 
 interface Emits {
@@ -16,6 +18,8 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   confirmLabel: "Supprimer",
   cancelLabel: "Annuler",
+  confirmColor: "red",
+  loading: false,
 });
 
 const emit = defineEmits<Emits>();
@@ -40,10 +44,16 @@ function cancel() {
     </div>
 
     <template #footer>
-      <UButton color="neutral" variant="outline" size="md" @click="cancel">
+      <UButton color="gray" variant="outline" size="md" @click="cancel">
         {{ props.cancelLabel }}
       </UButton>
-      <UButton color="error" variant="solid" size="md" @click="confirm">
+      <UButton
+        color="red"
+        variant="solid"
+        size="md"
+        :loading="props.loading"
+        @click="confirm"
+      >
         {{ props.confirmLabel }}
       </UButton>
     </template>

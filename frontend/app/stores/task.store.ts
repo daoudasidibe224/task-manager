@@ -9,209 +9,273 @@ interface TaskState {
   error: string | null;
 }
 
-export const useTaskStore = defineStore("task", {
-  state: (): TaskState => ({
+export const useTaskStore = defineStore("task", () => {
+  const state = reactive<TaskState>({
     tasks: [],
     loading: false,
     error: null,
-  }),
+  });
 
-  actions: {
-    async fetchTasks(filters: TaskFilters = {}) {
-      this.loading = true;
-      this.error = null;
-      const { get } = useApi();
-      const { withNotifications } = useNotifications();
+  const tasks = computed(() => state.tasks);
 
-      const queryParams = new URLSearchParams();
-      if (filters.listId) {
-        queryParams.append("listId", filters.listId);
-      }
-      if (typeof filters.completed === "boolean") {
-        queryParams.append("completed", String(filters.completed));
-      }
+  function validateTasks() {
+    try {
+      state.tasks = state.tasks.filter(
+        (task) =>
+          task &&
+          typeof task.id === "string" &&
+          typeof task.shortDescription === "string" &&
+          typeof task.listId === "string" &&
+          task.id.length > 10 &&
+          !task.id.includes("undefined") &&
+          !task.id.includes("null")
+      );
+    } catch {
+      state.tasks = [];
+    }
+  }
 
-      try {
-        const response = await withNotifications(
-          () => get<Task[]>(`tasks?${queryParams.toString()}`),
-          { hideSuccess: true }
-        );
-        if (response?.success && response.data) {
-          this.tasks = response.data;
-        } else {
-          this.tasks = [];
-        }
-      } catch {
-        this.error = "Erreur lors de la récupération des tâches.";
-        this.tasks = [];
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async createTask(data: CreateTaskDto) {
-      this.loading = true;
-      this.error = null;
-      const { post } = useApi();
-      const { withNotifications } = useNotifications();
-
-      try {
-        const response = await withNotifications(
-          () => post<Task>("tasks", { ...data }),
-          { hideSuccess: false }
-        );
-
-        if (response?.success && response.data) {
-          // Vérifier si la tâche créée appartient à la liste actuellement sélectionnée
-          const taskListStore = useTaskListStore();
-          if (taskListStore.selectedTaskList?.id === data.listId) {
-            this.tasks.push(response.data);
-          }
-          return response.data;
-        }
-      } catch (err) {
-        this.error = "Erreur lors de la création de la tâche.";
-        throw err;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async updateTask(id: string, data: UpdateTaskDto) {
-      this.error = null;
-      const { patch } = useApi();
-      const { withNotifications } = useNotifications();
-
-      // Mise à jour optimiste pour la réactivité immédiate
-      const taskIndex = this.tasks.findIndex((t) => t.id === id);
-      const originalTask =
-        taskIndex !== -1 ? { ...this.tasks[taskIndex] } : null;
-
-      if (taskIndex !== -1) {
-        // Mise à jour immédiate de l'interface
-        this.tasks[taskIndex] = {
-          ...this.tasks[taskIndex],
-          ...data,
-          dueDate:
-            data.dueDate instanceof Date
-              ? data.dueDate.toISOString()
-              : data.dueDate || this.tasks[taskIndex].dueDate,
-        };
-      }
-
-      try {
-        this.loading = true;
-        const response = await withNotifications(
-          () => patch<Task>(`tasks/${id}`, { ...data }),
-          { hideSuccess: false }
-        );
-
-        if (response?.success && response.data) {
-          const updatedTask = response.data;
-          if (taskIndex !== -1) {
-            this.tasks[taskIndex] = updatedTask;
-          }
-          return updatedTask;
-        }
-      } catch (err) {
-        // Restaurer l'état original en cas d'erreur
-        if (taskIndex !== -1 && originalTask) {
-          this.tasks[taskIndex] = originalTask;
-        }
-        this.error = "Erreur lors de la mise à jour de la tâche.";
-        throw err;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async deleteTask(id: string) {
-      this.loading = true;
-      this.error = null;
-      const { del } = useApi();
-      const { withNotifications } = useNotifications();
-
-      // Suppression optimiste - supprimer de l'interface immédiatement
-      const originalTasks = [...this.tasks];
-      const taskIndex = this.tasks.findIndex((t) => t.id === id);
-
-      if (taskIndex === -1) {
-        this.loading = false;
+  async function fetchTasks(filters: TaskFilters = {}) {
+    if (filters.listId) {
+      if (
+        typeof filters.listId !== "string" ||
+        filters.listId.trim() === "" ||
+        filters.listId.length < 10 ||
+        filters.listId.includes("undefined") ||
+        filters.listId.includes("null")
+      ) {
+        state.tasks = [];
+        state.error = "ID de liste invalide";
         return;
       }
+    }
 
-      // Mise à jour optimiste de l'interface
-      this.tasks = this.tasks.filter((t) => t.id !== id);
+    state.loading = true;
+    state.error = null;
+    const { get } = useApi();
+    const { withNotifications } = useNotifications();
 
-      // Forcer une mise à jour réactive
+    const queryParams = new URLSearchParams();
+    if (filters.listId) {
+      queryParams.append("listId", filters.listId);
+    }
+    if (typeof filters.completed === "boolean") {
+      queryParams.append("completed", String(filters.completed));
+    }
+
+    try {
+      const response = await withNotifications(
+        () => get<Task[]>(`tasks?${queryParams.toString()}`),
+        { hideSuccess: true }
+      );
+      if (response?.success && response.data) {
+        state.tasks = response.data;
+        validateTasks();
+      } else {
+        state.tasks = [];
+      }
+    } catch {
+      state.error = "Erreur lors de la récupération des tâches.";
+      state.tasks = [];
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  async function createTask(data: CreateTaskDto) {
+    if (
+      !data.listId ||
+      typeof data.listId !== "string" ||
+      data.listId.trim() === ""
+    ) {
+      throw new Error("ID de liste requis pour créer une tâche");
+    }
+
+    state.loading = true;
+    state.error = null;
+    const { post } = useApi();
+    const { withNotifications } = useNotifications();
+
+    try {
+      const response = await withNotifications(
+        () => post<Task>("tasks", { ...data }),
+        { hideSuccess: false }
+      );
+
+      if (response?.success && response.data) {
+        const taskListStore = useTaskListStore();
+        if (taskListStore.selectedTaskList?.id === data.listId) {
+          state.tasks.push(response.data);
+        }
+        return response.data;
+      }
+    } catch (err) {
+      state.error = "Erreur lors de la création de la tâche.";
+      throw err;
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  async function updateTask(id: string, data: UpdateTaskDto) {
+    if (!id || typeof id !== "string" || id.trim() === "") {
+      return;
+    }
+
+    state.error = null;
+    const { patch } = useApi();
+    const { withNotifications } = useNotifications();
+
+    const taskIndex = state.tasks.findIndex((t) => t.id === id);
+    const originalTask =
+      taskIndex !== -1 ? { ...state.tasks[taskIndex] } : null;
+
+    if (taskIndex !== -1) {
+      state.tasks[taskIndex] = {
+        ...state.tasks[taskIndex],
+        ...data,
+        dueDate:
+          data.dueDate instanceof Date
+            ? data.dueDate.toISOString()
+            : data.dueDate || state.tasks[taskIndex].dueDate,
+      };
+    }
+
+    try {
+      state.loading = true;
+      const response = await withNotifications(
+        () => patch<Task>(`tasks/${id}`, { ...data }),
+        { hideSuccess: false }
+      );
+
+      if (response?.success && response.data) {
+        const updatedTask = response.data;
+        if (taskIndex !== -1) {
+          state.tasks[taskIndex] = updatedTask;
+        }
+        return updatedTask;
+      }
+    } catch (err) {
+      if (taskIndex !== -1 && originalTask) {
+        state.tasks[taskIndex] = originalTask;
+      }
+      state.error = "Erreur lors de la mise à jour de la tâche.";
+      throw err;
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  async function deleteTask(id: string) {
+    if (!id || typeof id !== "string" || id.trim() === "") {
+      return;
+    }
+
+    state.loading = true;
+    state.error = null;
+    const { del } = useApi();
+    const { withNotifications } = useNotifications();
+
+    const originalTasks = [...state.tasks];
+    const taskIndex = state.tasks.findIndex((t) => t.id === id);
+
+    if (taskIndex === -1) {
+      state.loading = false;
+      return;
+    }
+
+    state.tasks = state.tasks.filter((t) => t.id !== id);
+    await nextTick();
+
+    try {
+      const response = await withNotifications(() => del(`tasks/${id}`), {
+        hideSuccess: false,
+      });
+
+      if (!response || !response.success) {
+        state.tasks = originalTasks;
+        state.error = "Échec de la suppression de la tâche";
+        await nextTick();
+        return;
+      }
+    } catch (err) {
+      state.tasks = originalTasks;
+      state.error = "Erreur lors de la suppression de la tâche.";
       await nextTick();
+      throw err;
+    } finally {
+      state.loading = false;
+      await nextTick();
+    }
+  }
 
-      try {
-        const response = await withNotifications(() => del(`tasks/${id}`), {
-          hideSuccess: false,
-        });
+  async function toggleTaskCompletion(task: Task) {
+    if (!task || !task.id) {
+      return;
+    }
+    return updateTask(task.id, { completed: !task.completed });
+  }
 
-        // Vérifier que la suppression a bien réussi
-        if (!response || !response.success) {
-          // Restaurer l'état original si échec
-          this.tasks = originalTasks;
-          this.error = "Échec de la suppression de la tâche";
-          await nextTick(); // Forcer le re-rendu
+  function subscribeToTaskListChanges() {
+    const taskListStore = useTaskListStore();
+    let currentListId: string | null = null;
+
+    watch(
+      () => taskListStore.selectedTaskList?.id || null,
+      (newListId) => {
+        if (newListId === currentListId) {
           return;
         }
 
-        // Succès confirmé - l'interface est déjà à jour grâce à la mise à jour optimiste
-      } catch (err) {
-        // Restaurer l'état original en cas d'erreur
-        this.tasks = originalTasks;
-        this.error = "Erreur lors de la suppression de la tâche.";
-        await nextTick(); // Forcer le re-rendu
+        if (
+          newListId &&
+          (typeof newListId !== "string" ||
+            newListId.length < 10 ||
+            newListId.includes("undefined"))
+        ) {
+          taskListStore.selectTaskList(null);
+          state.tasks = [];
+          return;
+        }
 
-        throw err;
-      } finally {
-        this.loading = false;
-        await nextTick(); // Forcer le re-rendu final
-      }
-    },
+        currentListId = newListId;
 
-    async toggleTaskCompletion(task: Task) {
-      return this.updateTask(task.id, { completed: !task.completed });
-    },
-
-    subscribeToTaskListChanges() {
-      const taskListStore = useTaskListStore();
-      let currentListId: string | null = null;
-
-      // Écouter UNIQUEMENT les changements de selectedTaskList, pas tout le store
-      watch(
-        () => taskListStore.selectedTaskList?.id || null,
-        (newListId) => {
-          // Éviter les appels redondants
-          if (newListId === currentListId) {
-            return;
+        if (newListId) {
+          if (!state.loading) {
+            fetchTasks({ listId: newListId });
           }
+        } else {
+          state.tasks = [];
+        }
+      },
+      { immediate: false }
+    );
+  }
 
-          currentListId = newListId;
+  async function refreshCurrentListTasks() {
+    const taskListStore = useTaskListStore();
+    if (taskListStore.selectedTaskList?.id) {
+      await fetchTasks({ listId: taskListStore.selectedTaskList.id });
+    }
+  }
 
-          if (newListId) {
-            // Éviter les appels si déjà en cours de chargement
-            if (!this.loading) {
-              this.fetchTasks({ listId: newListId });
-            }
-          } else {
-            this.tasks = [];
-          }
-        },
-        { immediate: true } // Charger immédiatement si une liste est déjà sélectionnée
-      );
-    },
+  function resetState() {
+    state.tasks = [];
+    state.loading = false;
+    state.error = null;
+  }
 
-    // Nouvelle méthode pour rafraîchir les tâches de la liste actuelle
-    async refreshCurrentListTasks() {
-      const taskListStore = useTaskListStore();
-      if (taskListStore.selectedTaskList) {
-        await this.fetchTasks({ listId: taskListStore.selectedTaskList.id });
-      }
-    },
-  },
+  return {
+    ...toRefs(state),
+    tasks,
+    validateTasks,
+    fetchTasks,
+    createTask,
+    updateTask,
+    deleteTask,
+    toggleTaskCompletion,
+    subscribeToTaskListChanges,
+    refreshCurrentListTasks,
+    resetState,
+  };
 });

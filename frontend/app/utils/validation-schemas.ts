@@ -65,6 +65,10 @@ export const loginSchema = z.object({
     .min(
       VALIDATION_CONSTANTS.USER.PASSWORD_MIN_LENGTH,
       VALIDATION_MESSAGES.PASSWORD_TOO_SHORT
+    )
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/,
+      VALIDATION_MESSAGES.PASSWORD_WEAK
     ),
 });
 
