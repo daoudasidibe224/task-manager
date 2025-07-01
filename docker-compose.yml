@@ -1,0 +1,59 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    env_file:
+      - ./frontend/.env
+    environment:
+      # Override pour Docker
+      - NUXT_HOST=0.0.0.0
+      - NUXT_API_BASE_URL=http://backend:8000/api
+    networks:
+      - libheros-dev-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override pour Docker
+      - HOST=0.0.0.0
+      - FRONTEND_URL=http://frontend:3000
+      - DATABASE_URL=postgresql://root:libheros@db:5432/libheros_dev
+    depends_on:
+      - db
+    networks:
+      - libheros-dev-network
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=libheros_dev
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=libheros
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - libheros-dev-network
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  libheros-dev-network:
+    driver: bridge

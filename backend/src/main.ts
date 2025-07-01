@@ -1,8 +1,50 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
+import * as cookieParser from 'cookie-parser';
+import * as dotenv from 'dotenv';
+import helmet from 'helmet';
+import {
+  appConfig,
+  corsConfig,
+  createSwaggerConfig,
+  validationConfig,
+  helmetConfig,
+} from './config';
+
+dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+
+  // Configuration du préfixe global
+  app.setGlobalPrefix(appConfig.globalPrefix);
+
+  // Configuration de Helmet
+  app.use(helmet(helmetConfig));
+
+  // Configuration des cookies
+  app.use(cookieParser());
+
+  // Configuration CORS
+  app.enableCors(corsConfig);
+
+  // Configuration de la validation globale DTO
+  app.useGlobalPipes(new ValidationPipe(validationConfig));
+
+  // Configuration Swagger
+  const swaggerConfig = createSwaggerConfig();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api', app, document);
+
+  // Démarrage du serveur avec host et port configurés pour Docker
+  await app.listen(appConfig.port, appConfig.host);
+
+  // Messages de démarrage
+  console.log(`🚀 Server is running on ${appConfig.host}:${appConfig.port}`);
+  console.log(
+    `📚 Swagger documentation available at http://${appConfig.host}:${appConfig.port}/api`,
+  );
 }
-bootstrap();
+void bootstrap();
