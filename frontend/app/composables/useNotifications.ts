@@ -4,14 +4,7 @@ export interface NotificationOptions {
   title?: string;
   description?: string;
   timeout?: number;
-  color?:
-    | "success"
-    | "error"
-    | "warning"
-    | "info"
-    | "primary"
-    | "secondary"
-    | "neutral";
+  color?: "green" | "red" | "yellow" | "gray" | "primary";
   icon?: string;
 }
 
@@ -40,7 +33,7 @@ export const useNotifications = () => {
     toast.add({
       title: options.title || "Succès",
       description: message,
-      color: "success",
+      color: "green",
       icon: "i-heroicons-check-circle",
       timeout: options.timeout || 5000,
       ...options,
@@ -57,7 +50,7 @@ export const useNotifications = () => {
     toast.add({
       title: options.title || "Erreur",
       description: message,
-      color: "error",
+      color: "red",
       icon: "i-heroicons-x-circle",
       timeout: options.timeout || 7000,
       ...options,
