@@ -13,7 +13,7 @@ services:
     environment:
       # Override pour Docker
       - NUXT_HOST=0.0.0.0
-      - NUXT_API_BASE_URL=http://backend:8000/api
+      - NUXT_API_BASE_URL=http://backend:3000/api
     networks:
       - libheros-dev-network
 
@@ -23,7 +23,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-      - "5555:5555"
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -32,10 +31,35 @@ services:
     environment:
       # Override pour Docker
       - HOST=0.0.0.0
-      - FRONTEND_URL=http://frontend:8000
+      - FRONTEND_URL=http://localhost:8000
       - DATABASE_URL=postgresql://root:libheros@db:5432/taskmanager
     depends_on:
       - db
+    networks:
+      - libheros-dev-network
+
+  prisma-studio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    env_file:
+      - ./backend/.env
+    environment:
+      - HOST=0.0.0.0
+      - DATABASE_URL=postgresql://root:libheros@db:5432/taskmanager
+    depends_on:
+      - db
+    command:
+      [
+        "sh",
+        "-c",
+        "npx prisma generate && npx prisma studio --hostname 0.0.0.0 --port 5555",
+      ]
     networks:
       - libheros-dev-network
 

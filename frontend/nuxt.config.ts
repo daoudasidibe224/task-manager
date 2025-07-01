@@ -15,8 +15,11 @@ export default defineNuxtConfig({
   },
   srcDir: "app/",
   runtimeConfig: {
+    // Côté serveur (dans Docker)
+    apiBaseUrl: process.env.NUXT_API_BASE_URL || "http://backend:3000/api",
     public: {
-      apiBaseUrl: process.env.NUXT_API_BASE_URL || "http://localhost:8000/api",
+      // Côté client (navigateur)
+      apiBaseUrl: "http://localhost:3000/api",
     },
   },
 });

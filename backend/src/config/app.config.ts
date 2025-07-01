@@ -19,9 +19,11 @@ export const helmetConfig: HelmetOptions = {
 // Configuration CORS avec support Docker ET développement local
 export const corsConfig: CorsOptions = {
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    'http://localhost:3000', // local
-    'http://frontend:3000', // Docker
+    process.env.FRONTEND_URL || 'http://localhost:8000',
+    'http://localhost:8000', // Frontend local
+    'http://localhost:3000', // API local
+    'http://frontend:8000', // Frontend Docker
+    'http://backend:3000', // API Docker
   ],
   credentials: true, // Essentiel pour les cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
