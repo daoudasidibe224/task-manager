@@ -1,3 +1,4 @@
+// Type principal pour un utilisateur (réponse du backend)
 export interface User {
   id: string;
   firstname: string;
@@ -7,13 +8,7 @@ export interface User {
   updatedAt: string;
 }
 
-export interface CreateUserDto {
-  firstname: string;
-  lastname: string;
-  email: string;
-  password: string;
-}
-
+// Type pour la mise à jour d'un utilisateur (tous les champs optionnels)
 export interface UpdateUserDto {
   firstname?: string;
   lastname?: string;

@@ -11,7 +11,8 @@ RUN pnpm install
 # Copie du code source
 COPY . .
 
+
 # Exposition du port
-EXPOSE 8000
+EXPOSE 3000
 
 CMD ["pnpm", "run", "dev"]

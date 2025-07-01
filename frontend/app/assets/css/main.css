@@ -1,7 +1,10 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+@import "./dashboard.css";
+@import "./modal-effects.css";
 
-* Amélioration du contraste global */ body {
+/* Amélioration du contraste global */
+body {
   color: #374151; /* text-gray-700 par défaut */
 }
 

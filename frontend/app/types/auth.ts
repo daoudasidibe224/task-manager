@@ -5,11 +5,13 @@
 
 import type { User } from "./user";
 
+// Type pour les données de connexion
 export interface LoginDto {
   email: string;
   password: string;
 }
 
+// Type pour les données d'inscription
 export interface RegisterDto {
   firstname: string;
   lastname: string;
@@ -17,35 +19,9 @@ export interface RegisterDto {
   password: string;
 }
 
-export interface AuthResponse {
-  user: User;
-  success: boolean;
-  message: string;
-  tokens?: {
-    accessToken: string;
-    refreshToken: string;
-  };
-  clearCookies?: boolean;
-}
-
-export interface RefreshTokenDto {
-  refreshToken: string;
-}
-
+// Type pour l'état d'authentification dans le store
 export interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
-}
-
-export interface AuthError {
-  message: string;
-  statusCode?: number;
-  error?: string;
-}
-
-export interface UserSession {
-  user: User;
-  accessToken: string;
-  expiresAt: string;
 }
