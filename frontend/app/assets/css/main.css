@@ -1,311 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import "@nuxt/ui";
-@import "./dashboard.css";
-@import "./modal-effects.css";
 
-/* Amélioration du contraste global */
 body {
-  color: #374151; /* text-gray-700 par défaut */
+  color: #374151;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
 }
 
-/* Amélioration des couleurs pour un meilleur contraste */
-.text-gray-900 {
-  color: #111827 !important;
+/* Cartes */
+.card {
+  @apply bg-white border border-gray-200 rounded-xl shadow-sm;
 }
 
-.text-gray-800 {
-  color: #1f2937 !important;
-}
-
-.text-gray-700 {
-  color: #374151 !important;
-}
-
-.text-gray-600 {
-  color: #4b5563 !important;
-}
-
-/* Amélioration des couleurs d'interface */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  color: #1f2937;
-}
-
-/* Amélioration du contraste pour les états hover */
-.hover\:text-gray-900:hover {
-  color: #111827 !important;
-}
-
-.hover\:text-gray-800:hover {
-  color: #1f2937 !important;
-}
-
-/* Styles pour les modales avec fond sombre */
-.text-white label {
-  color: #f9fafb !important;
-}
-
-.text-white .text-gray-400 {
-  color: #d1d5db !important;
-}
-
-/* Amélioration des formulaires dans les modales */
-.UFormField.text-white label {
-  color: white !important;
-}
-
-/* Amélioration des titres de modales */
-.text-gray-100 {
-  color: #f3f4f6 !important;
-}
-
-/* Utilitaires pour des pages spécifiques */
-.hero-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero-card {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Buttons with transitions */
-.btn-hover {
-  @apply transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
-}
-
-/* Dark mode form inputs */
-.dark .form-input {
-  @apply bg-gray-800 border-gray-700 text-white;
-}
-
-/* Focus ring customization */
-.custom-focus {
-  @apply focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500;
-}
-
-/* Modal improvements for proper display */
-.modal-overlay {
-  z-index: 1000 !important;
-}
-
-/* Ensure modals are properly positioned and centered */
-[data-radix-portal] {
-  z-index: 1000 !important;
-}
-
-/* Override any conflicting modal positioning */
-[role="dialog"][data-state="open"] {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1001;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-/* Modal backdrop */
-[data-state="open"][data-overlay] {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 1000 !important;
-  background-color: rgb(0 0 0 / 0.5) !important;
-  backdrop-filter: blur(2px) !important;
-}
-
-/* ===========================================
-   ANIMATIONS ET TRANSITIONS PERSONNALISÉES
-   =========================================== */
-
-/* Animation pour les éléments qui apparaissent */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes fadeInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideOutRight {
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-/* Classes utilitaires pour les animations */
-.animate-fade-in-up {
-  animation: fadeInUp 0.3s ease-out;
-}
-
-.animate-fade-in-left {
-  animation: fadeInLeft 0.3s ease-out;
-}
-
-.animate-fade-in-right {
-  animation: fadeInRight 0.3s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.2s ease-out;
-}
-
-.animate-slide-in-right {
-  animation: slideInRight 0.3s ease-out;
-}
-
-.animate-slide-out-right {
-  animation: slideOutRight 0.2s ease-in;
-}
-
-/* ===========================================
-   STYLES POUR LES COMPOSANTS NUXT UI
-   =========================================== */
-
-/* Amélioration des transitions pour les boutons */
-.btn-smooth {
-  @apply transition-all duration-200 ease-in-out;
-}
-
-.btn-smooth:hover {
-  @apply transform scale-105;
-}
-
-/* Style pour les cartes avec effet de levitation */
 .card-hover {
-  @apply transition-all duration-300 ease-out;
+  @apply transition-all duration-300 hover:shadow-md hover:-translate-y-1;
 }
 
-.card-hover:hover {
-  @apply transform -translate-y-1 shadow-lg;
+/* Boutons */
+.btn-gradient {
+  @apply bg-gradient-to-r from-violet-600 to-blue-500 text-white font-medium rounded-lg px-4 py-2 flex items-center justify-center gap-2 transition active:scale-95 hover:from-violet-700 hover:to-blue-600;
 }
 
-/* ===========================================
-   STYLES POUR LES TRANSITIONS VUE
-   =========================================== */
-
-/* Transition fade par défaut */
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.3s ease;
+/* Toasts */
+.toast-base {
+  @apply text-white px-4 py-3 rounded-lg shadow-lg flex gap-2 items-start;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.toast-success {
+  @apply toast-base bg-green-600/90;
 }
 
-/* Transition slide horizontale */
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.4s ease;
+.toast-error {
+  @apply toast-base bg-red-600/90;
 }
 
-.slide-enter-from {
-  opacity: 0;
-  transform: translateX(20px);
+$.custom-icon {
+  @apply flex-shrink-0;
 }
 
-.slide-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
-}
-
-/* Transition scale */
-.scale-enter-active,
-.scale-leave-active {
-  transition: all 0.3s ease;
-}
-
-.scale-enter-from,
-.scale-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
-}
-
-/* Transition pour les listes */
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.3s ease;
-}
-
-.list-enter-from,
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(10px) scale(0.98);
-}
-
-.list-move {
-  transition: transform 0.3s ease;
-}
-
-/* ===========================================
-   AMÉLIORATIONS DE L'INTERFACE UTILISATEUR
-   =========================================== */
-
-/* Scrollbars personnalisées */
+/* Scrollbar personnalisée */
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
@@ -328,307 +62,44 @@ h6 {
   background-color: rgba(156, 163, 175, 0.7);
 }
 
-/* Style pour les éléments interactifs */
-.interactive-element {
-  @apply transition-all duration-200 ease-in-out;
+/* Modales */
+.modal-overlay {
+  z-index: 1000 !important;
 }
 
-.interactive-element:hover {
-  @apply transform translate-y-[-1px];
+[data-radix-portal] {
+  z-index: 1000 !important;
 }
 
-.interactive-element:active {
-  @apply transform translate-y-0;
+[role="dialog"][data-state="open"] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  max-width: 90vw;
+  max-height: 90vh;
 }
 
-/* ===========================================
-   LOADING STATES ET SKELETONS
-   =========================================== */
+[data-state="open"][data-overlay] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  background-color: rgb(0 0 0 / 0.5) !important;
+  backdrop-filter: blur(2px) !important;
+}
 
-/* Animation pour les skeletons */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
   }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(229, 231, 235, 0.4) 25%,
-    rgba(209, 213, 219, 0.6) 50%,
-    rgba(229, 231, 235, 0.4) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-/* ===========================================
-   STYLES POUR L'ACCESSIBILITÉ
-   =========================================== */
-
-/* Focus visible amélioré */
-.focus-visible {
-  @apply outline-none ring-2 ring-blue-500 ring-offset-2;
-}
-
-/* Style pour les éléments désactivés */
-.disabled {
-  @apply opacity-50 cursor-not-allowed;
-}
-
-/* ===========================================
-   RESPONSIVE ET UTILITAIRES
-   =========================================== */
-
-/* Masquer les éléments en mobile */
-@media (max-width: 768px) {
-  .hidden-mobile {
-    display: none;
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-/* Amélioration du rendu des polices */
-.text-smooth {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Style pour les dividers */
-.divider {
-  @apply border-t border-gray-200;
-}
-
-.divider-vertical {
-  @apply border-l border-gray-200;
-}
-
-/* ===========================================
-   STYLES POUR LES MODALES
-   =========================================== */
-
-/* Éviter les conflits avec Nuxt UI modales */
-/* Les styles par défaut de Nuxt UI v3 sont suffisants */
-
-/* ===========================================
-   OPTIMISATIONS PERFORMANCE
-   =========================================== */
-
-/* Optimisation des animations avec transform et opacity */
-.gpu-accelerated {
-  transform: translateZ(0);
-  will-change: transform, opacity;
-}
-
-/* Amélioration des performances pour les listes longues */
-.contain-layout {
-  contain: layout;
-}
-
-.contain-paint {
-  contain: paint;
-}
-
-/* ===========================================
-   DARK MODE SUPPORT (POUR LE FUTUR)
-   =========================================== */
-
-@media (prefers-color-scheme: dark) {
-  .dark-mode-auto {
-    @apply bg-gray-900 text-gray-100;
-  }
-}
-
-/* ===========================================
-   STYLES PERSONNALISÉS POUR LES CHAMPS
-   =========================================== */
-
-/* Styles pour des champs classiques avec form controls - Sélecteurs très spécifiques pour Nuxt UI */
-.clean-input input[type="text"],
-.clean-input input[type="email"],
-.clean-input input[type="password"],
-.clean-input input[type="date"],
-.clean-input input[type="datetime-local"],
-.clean-input textarea,
-.clean-input select {
-  width: 100% !important;
-  background-color: white !important;
-  color: #1f2937 !important;
-  border: 1px solid #d1d5db !important;
-  border-radius: 0.5rem !important;
-  padding: 0.875rem 1rem !important;
-  font-size: 1rem !important;
-  line-height: 1.5 !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Amélioration spécifique pour les champs de date */
-.clean-input input[type="date"],
-.clean-input input[type="datetime-local"] {
-  cursor: pointer !important;
-  position: relative !important;
-}
-
-/* Rendre toute la zone du champ de date cliquable pour ouvrir le calendrier */
-.clean-input input[type="date"]::-webkit-calendar-picker-indicator,
-.clean-input input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  cursor: pointer !important;
-  opacity: 1 !important;
-  background: transparent !important;
-  color: #6b7280 !important;
-  position: absolute !important;
-  right: 0 !important;
-  top: 0 !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  margin: 0 !important;
-}
-
-/* Styles pour les composants UInput avec type date */
-.UInput input[type="date"],
-.UInput input[type="datetime-local"] {
-  cursor: pointer !important;
-}
-
-.UInput input[type="date"]::-webkit-calendar-picker-indicator,
-.UInput input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  cursor: pointer !important;
-  opacity: 1 !important;
-  background: transparent !important;
-  position: absolute !important;
-  right: 0 !important;
-  top: 0 !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  margin: 0 !important;
-}
-
-/* Sélecteurs Nuxt UI spécifiques */
-.clean-input .UInput input,
-.clean-input .UTextarea textarea,
-.clean-input .USelect select {
-  width: 100% !important;
-  background-color: white !important;
-  color: #1f2937 !important;
-  border: 1px solid #d1d5db !important;
-  border-radius: 0.5rem !important;
-  padding: 0.875rem 1rem !important;
-  font-size: 1rem !important;
-  line-height: 1.5 !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Hover states */
-.clean-input input[type="text"]:hover,
-.clean-input input[type="email"]:hover,
-.clean-input input[type="password"]:hover,
-.clean-input input[type="date"]:hover,
-.clean-input input[type="datetime-local"]:hover,
-.clean-input textarea:hover,
-.clean-input select:hover,
-.clean-input .UInput input:hover,
-.clean-input .UTextarea textarea:hover,
-.clean-input .USelect select:hover {
-  border-color: #9ca3af !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Focus states */
-.clean-input input[type="text"]:focus,
-.clean-input input[type="email"]:focus,
-.clean-input input[type="password"]:focus,
-.clean-input input[type="date"]:focus,
-.clean-input input[type="datetime-local"]:focus,
-.clean-input textarea:focus,
-.clean-input select:focus,
-.clean-input .UInput input:focus,
-.clean-input .UTextarea textarea:focus,
-.clean-input .USelect select:focus {
-  outline: none !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Placeholder styles */
-.clean-input input[type="text"]::placeholder,
-.clean-input input[type="email"]::placeholder,
-.clean-input input[type="password"]::placeholder,
-.clean-input textarea::placeholder,
-.clean-input .UInput input::placeholder,
-.clean-input .UTextarea textarea::placeholder {
-  color: #9ca3af !important;
-}
-
-/* Disabled states */
-.clean-input input[type="text"]:disabled,
-.clean-input input[type="email"]:disabled,
-.clean-input input[type="password"]:disabled,
-.clean-input input[type="date"]:disabled,
-.clean-input input[type="datetime-local"]:disabled,
-.clean-input textarea:disabled,
-.clean-input select:disabled,
-.clean-input .UInput input:disabled,
-.clean-input .UTextarea textarea:disabled,
-.clean-input .USelect select:disabled {
-  background-color: #f9fafb !important;
-  color: #6b7280 !important;
-  cursor: not-allowed !important;
-}
-
-/* Textarea spécifique */
-.clean-textarea textarea,
-.clean-textarea .UTextarea textarea {
-  min-height: 120px !important;
-  resize: vertical !important;
-}
-
-/* Labels avec un style propre */
-.clean-input label,
-.clean-input .UFormField label {
-  color: #374151 !important;
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  margin-bottom: 0.5rem !important;
-}
-
-/* Simple fix pour largeur des champs */
-.clean-input input,
-.clean-input textarea {
-  width: 100% !important;
-}
-
-/* Force largeur sur composants Nuxt UI */
-.UInput,
-.UTextarea,
-.UFormField {
-  width: 100% !important;
-}
-
-.UInput input,
-.UTextarea textarea {
-  width: 100% !important;
-}
-
-/* Force largeur pour les pages d'authentification */
-.UCard .UInput,
-.UCard .UTextarea,
-.UCard .UFormField {
-  width: 100% !important;
-}
-
-.UCard .UInput input,
-.UCard .UTextarea textarea {
-  width: 100% !important;
-}
-
-/* Icônes noires dans les modales */
-.custom-icon {
-  color: #1f2937 !important;
+.animate-fade-in-right {
+  animation: fadeInRight 0.3s ease-out;
 }

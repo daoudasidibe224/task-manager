@@ -693,7 +693,6 @@ const logout = async () => {
   await authStore.logout();
 };
 
-// Initialisation simplifiée
 onMounted(async () => {
   try {
     // Validation et nettoyage de l'état persisté
@@ -717,22 +716,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Animation pour la sidebar droite */
-.animate-fade-in-right {
-  animation: fadeInRight 0.3s ease-out;
-}
-
-@keyframes fadeInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 /* Transitions pour le contenu principal */
 .content-fade-enter-active,
 .content-fade-leave-active {
@@ -753,31 +736,5 @@ onMounted(async () => {
 .content-fade-leave-from {
   opacity: 1;
   transform: translateY(0);
-}
-
-/* Smooth transitions pour tous les éléments */
-* {
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Amélioration des transitions pour les hover states */
-.group:hover .group-hover\:opacity-100 {
-  transition-delay: 0ms;
-}
-
-/* Animation pour les listes */
-.list-item-enter-active,
-.list-item-leave-active {
-  transition: all 0.2s ease-in-out;
-}
-
-.list-item-enter-from,
-.list-item-leave-to {
-  opacity: 0;
-  transform: translateX(-10px);
-}
-
-.list-item-move {
-  transition: transform 0.2s ease-in-out;
 }
 </style>
