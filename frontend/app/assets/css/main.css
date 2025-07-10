@@ -35,7 +35,7 @@ body {
   @apply toast-base bg-red-600/90;
 }
 
-$.custom-icon {
+.custom-icon {
   @apply flex-shrink-0;
 }
 
