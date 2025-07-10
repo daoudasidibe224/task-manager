@@ -31,7 +31,6 @@ export const useTaskListStore = defineStore("taskList", () => {
           list.id.length > 10 &&
           !list.id.includes("undefined") &&
           !list.id.includes("null") &&
-          !list.id.includes("cmckccd4w0002") &&
           list.name.trim().length > 0
       );
     } catch {
@@ -207,22 +206,12 @@ export const useTaskListStore = defineStore("taskList", () => {
   function selectTaskList(list: TaskList | null) {
     if (
       list &&
-      (!list.id ||
-        typeof list.id !== "string" ||
-        list.id.length < 10 ||
-        list.id.includes("cmckccd4w0002"))
+      (!list.id || typeof list.id !== "string" || list.id.length < 10)
     ) {
       state.selectedTaskList = null;
       return;
     }
     state.selectedTaskList = list;
-  }
-
-  function resetState() {
-    state.taskLists = [];
-    state.selectedTaskList = null;
-    state.loading = false;
-    state.error = null;
   }
 
   return {
@@ -236,7 +225,6 @@ export const useTaskListStore = defineStore("taskList", () => {
     updateTaskList,
     deleteTaskList,
     selectTaskList,
-    resetState,
     $persist: {
       pick: ["taskLists"],
     },

@@ -252,19 +252,6 @@ export const useTaskStore = defineStore("task", () => {
     );
   }
 
-  async function refreshCurrentListTasks() {
-    const taskListStore = useTaskListStore();
-    if (taskListStore.selectedTaskList?.id) {
-      await fetchTasks({ listId: taskListStore.selectedTaskList.id });
-    }
-  }
-
-  function resetState() {
-    state.tasks = [];
-    state.loading = false;
-    state.error = null;
-  }
-
   return {
     ...toRefs(state),
     tasks,
@@ -275,7 +262,5 @@ export const useTaskStore = defineStore("task", () => {
     deleteTask,
     toggleTaskCompletion,
     subscribeToTaskListChanges,
-    refreshCurrentListTasks,
-    resetState,
   };
 });

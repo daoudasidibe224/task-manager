@@ -19,7 +19,6 @@ export const useAuthStore = defineStore("auth", () => {
   const isAuthenticated = computed(() => !!state.user);
   const currentUser = computed(() => state.user);
   const isLoading = computed(() => state.loading);
-  const authError = computed(() => state.error);
 
   async function login(credentials: LoginDto, redirect?: string) {
     state.loading = true;
@@ -107,25 +106,6 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function refreshTokens(): Promise<boolean> {
-    const { post } = useApi();
-
-    try {
-      const response = await post<{ user: User }>("auth/refresh");
-
-      if (response?.success && response.data?.user) {
-        state.user = response.data.user;
-        state.error = null;
-        return true;
-      } else {
-        return false;
-      }
-    } catch {
-      forceLogout();
-      return false;
-    }
-  }
-
   async function logout() {
     state.loading = true;
     const { post } = useApi();
@@ -150,29 +130,16 @@ export const useAuthStore = defineStore("auth", () => {
     navigateTo("/login");
   }
 
-  function resetError() {
-    state.error = null;
-  }
-
-  function resetProfileLoaded() {
-    state.profileLoaded = false;
-    state.profileLoading = false;
-  }
-
   return {
     ...toRefs(state),
     isAuthenticated,
     currentUser,
     isLoading,
-    authError,
     login,
     register,
     fetchProfile,
-    refreshTokens,
     logout,
     forceLogout,
-    resetError,
-    resetProfileLoaded,
     $persist: {
       pick: ["user"],
     },
