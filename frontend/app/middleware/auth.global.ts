@@ -1,58 +1,42 @@
 import { useAuthStore } from "~/stores/auth.store";
 
+let initialProfileFetch: Promise<void> | null = null;
+
 export default defineNuxtRouteMiddleware(async (to) => {
-  try {
-    const authStore = useAuthStore();
+  const authStore = useAuthStore();
 
-    // Éviter les boucles infinies
-    if (to.path === "/login" && to.query.redirect === "/login") {
-      return;
-    }
+  // Sur le serveur, on ne fait rien pour laisser le client gérer la logique.
+  if (process.server) {
+    return;
+  }
 
-    const publicRoutes = ["/login", "/register"];
-    const isPublic = publicRoutes.includes(to.path);
+  if (!initialProfileFetch) {
+    initialProfileFetch = authStore.fetchProfile();
+  }
+  await initialProfileFetch;
 
-    // Pour les routes publiques, vérifier uniquement si l'utilisateur est authentifié
-    if (isPublic) {
-      if (authStore.isAuthenticated) {
-        return navigateTo("/dashboard", { replace: true });
-      }
-      return;
-    }
+  const { isAuthenticated } = authStore;
+  const publicRoutes = ["/login", "/register"];
+  const isPublic = publicRoutes.includes(to.path);
 
-    // Pour les routes privées, charger le profil si nécessaire
-    if (!authStore.isAuthenticated) {
-      if (!authStore.profileLoaded && !authStore.profileLoading) {
-        try {
-          await authStore.fetchProfile();
-        } catch {
-          // Ignorer l'erreur, fetchProfile gère déjà l'état
-        }
-      }
+  // Rediriger vers le dashboard si l'utilisateur est connecté
+  if (isAuthenticated && isPublic) {
+    return navigateTo("/dashboard", { replace: true });
+  }
 
-      // Si toujours pas authentifié après fetchProfile
-      if (!authStore.isAuthenticated) {
-        const redirect = to.fullPath !== "/" ? to.fullPath : undefined;
-        return navigateTo(
-          {
-            path: "/login",
-            query: redirect ? { redirect } : undefined,
-          },
-          { replace: true }
-        );
-      }
-    }
+  // Rediriger vers login si l'utilisateur n'est pas connecté
+  if (!isAuthenticated && !isPublic) {
+    const redirect = to.fullPath !== "/" ? to.fullPath : undefined;
+    return navigateTo(
+      { path: "/login", query: redirect ? { redirect } : undefined },
+      { replace: true }
+    );
+  }
 
-    // Cas particulier de la page racine
-    if (to.path === "/") {
-      return navigateTo(authStore.isAuthenticated ? "/dashboard" : "/login", {
-        replace: true,
-      });
-    }
-  } catch {
-    // En cas d'erreur critique, rediriger vers login de manière sûre
-    if (to.path !== "/login") {
-      return navigateTo("/login", { replace: true });
-    }
+  // Gérer le cas de la page racine.
+  if (to.path === "/") {
+    return navigateTo(isAuthenticated ? "/dashboard" : "/login", {
+      replace: true,
+    });
   }
 });

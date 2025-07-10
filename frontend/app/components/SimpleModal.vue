@@ -14,11 +14,12 @@ const props = defineProps<Props>();
     <UCard
       :ui="{
         ring: '',
-        divide: 'divide-y divide-gray-100 dark:divide-gray-800',
+        divide: '',
         body: { padding: 'p-0 sm:p-0' },
         header: { padding: 'p-6 sm:px-6 sm:py-5' },
         footer: { padding: 'p-4 sm:p-5' },
       }"
+      class="!bg-white"
     >
       <template #header>
         <div class="flex items-center justify-between">
@@ -26,7 +27,7 @@ const props = defineProps<Props>();
             <Icon
               v-if="props.icon"
               :name="props.icon"
-              class="w-6 h-6 text-blue-600"
+              class="w-6 h-6 text-gray-900"
             />
             <h3 class="text-xl font-semibold leading-6 text-gray-900">
               {{ props.title }}
