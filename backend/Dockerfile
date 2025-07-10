@@ -22,7 +22,7 @@ RUN npm rebuild bcrypt --build-from-source
 COPY . .
 
 # Exposition du port
-EXPOSE 3000
+EXPOSE 8000
 
 # Script de démarrage avec gestion Prisma
 CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && pnpm run start:dev"]
