@@ -35,7 +35,8 @@ const props = defineProps<Props>();
           </div>
           <UButton
             color="gray"
-            variant="ghost"
+            variant="outline"
+            size="sm"
             icon="i-heroicons-x-mark-20-solid"
             class="-my-1"
             @click="isOpen = false"
