@@ -33,7 +33,7 @@ export const useNotifications = () => {
     toast.add({
       title: options.title || "Succès",
       description: message,
-      color: "primary",
+      color: "green",
       icon: "i-heroicons-check-circle",
       timeout: options.timeout || 5000,
       ...options,
@@ -50,7 +50,7 @@ export const useNotifications = () => {
     toast.add({
       title: options.title || "Erreur",
       description: message,
-      color: "primary",
+      color: "red",
       icon: "i-heroicons-x-circle",
       timeout: options.timeout || 7000,
       ...options,
@@ -63,7 +63,6 @@ export const useNotifications = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractErrorMessage = async (fetchError: any): Promise<string> => {
     try {
-      // Essayer de récupérer la réponse JSON du backend
       if (fetchError.response) {
         const errorData =
           (await fetchError.response.json()) as ApiResponse<unknown>;

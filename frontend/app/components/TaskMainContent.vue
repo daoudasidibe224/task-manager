@@ -19,7 +19,7 @@ const emit = defineEmits<Emits>();
 
 const taskListStore = useTaskListStore();
 const taskStore = useTaskStore();
-const { pendingTasks, completedTasks } = useTasks();
+const { mappedPendingTasks, mappedCompletedTasks } = useTasks();
 
 // État local
 const showCompleted = ref(false);
@@ -85,12 +85,12 @@ function createNewTask() {
           <template #header>
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Tâches à faire</h3>
-              <UBadge variant="soft">{{ pendingTasks.length }}</UBadge>
+              <UBadge variant="soft">{{ mappedPendingTasks.length }}</UBadge>
             </div>
           </template>
 
           <div
-            v-if="pendingTasks.length === 0"
+            v-if="mappedPendingTasks.length === 0"
             class="text-center py-8 text-gray-600"
           >
             <Icon
@@ -102,7 +102,7 @@ function createNewTask() {
 
           <div v-else class="space-y-2">
             <div
-              v-for="task in pendingTasks"
+              v-for="task in mappedPendingTasks"
               :key="task.id"
               class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer group"
               @click="selectTask(task)"
@@ -142,7 +142,7 @@ function createNewTask() {
         </UCard>
 
         <!-- Tâches terminées -->
-        <UCard v-if="completedTasks.length > 0">
+        <UCard v-if="mappedCompletedTasks.length > 0">
           <template #header>
             <div class="flex items-center justify-between">
               <UButton
@@ -160,13 +160,13 @@ function createNewTask() {
                 />
                 <span class="text-lg font-semibold">Tâches terminées</span>
               </UButton>
-              <UBadge variant="soft">{{ completedTasks.length }}</UBadge>
+              <UBadge variant="soft">{{ mappedCompletedTasks.length }}</UBadge>
             </div>
           </template>
 
           <div v-if="showCompleted" class="space-y-2">
             <div
-              v-for="task in completedTasks"
+              v-for="task in mappedCompletedTasks"
               :key="task.id"
               class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer group"
               @click="selectTask(task)"

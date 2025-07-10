@@ -7,77 +7,50 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-function close() {
-  isOpen.value = false;
-}
 </script>
 
 <template>
-  <Transition
-    enter-active-class="transition-all duration-300 ease-out"
-    leave-active-class="transition-all duration-200 ease-in"
-    enter-from-class="opacity-0"
-    leave-to-class="opacity-0"
-  >
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4"
+  <UModal v-model="isOpen" prevent-close>
+    <UCard
+      :ui="{
+        ring: '',
+        divide: 'divide-y divide-gray-100 dark:divide-gray-800',
+        body: { padding: 'p-0 sm:p-0' },
+        header: { padding: 'p-6 sm:px-6 sm:py-5' },
+        footer: { padding: 'p-4 sm:p-5' },
+      }"
     >
-      <!-- Backdrop avec flou -->
-      <Transition
-        enter-active-class="transition-all duration-300 ease-out"
-        leave-active-class="transition-all duration-200 ease-in"
-        enter-from-class="opacity-0"
-        leave-to-class="opacity-0"
-      >
-        <div
-          v-if="isOpen"
-          class="fixed inset-0 bg-black/30 backdrop-blur-sm"
-          @click="close"
-        />
-      </Transition>
-
-      <!-- Modal avec animation -->
-      <Transition
-        enter-active-class="transition-all duration-300 ease-out"
-        leave-active-class="transition-all duration-200 ease-in"
-        enter-from-class="opacity-0 scale-95 translate-y-4"
-        leave-to-class="opacity-0 scale-95 translate-y-4"
-      >
-        <div
-          v-if="isOpen"
-          class="relative bg-white rounded-xl shadow-2xl border border-gray-100 max-w-lg w-full p-6 transform"
-          @click.stop
-        >
-          <!-- Header avec style amélioré -->
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-3">
-              <Icon
-                v-if="props.icon"
-                :name="props.icon"
-                class="w-6 h-6 text-black custom-icon"
-              />
-              <h3 class="text-xl font-bold text-gray-900 tracking-tight">
-                {{ props.title }}
-              </h3>
-            </div>
-            <UButton color="gray" variant="outline" size="md" @click="close">
-              Annuler
-            </UButton>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <Icon
+              v-if="props.icon"
+              :name="props.icon"
+              class="w-6 h-6 text-blue-600"
+            />
+            <h3 class="text-xl font-semibold leading-6 text-gray-900">
+              {{ props.title }}
+            </h3>
           </div>
-
-          <!-- Content avec padding amélioré -->
-          <div class="mb-6">
-            <slot />
-          </div>
-
-          <!-- Footer avec espacement amélioré -->
-          <div class="flex gap-3 justify-end">
-            <slot name="footer" />
-          </div>
+          <UButton
+            color="gray"
+            variant="ghost"
+            icon="i-heroicons-x-mark-20-solid"
+            class="-my-1"
+            @click="isOpen = false"
+          />
         </div>
-      </Transition>
-    </div>
-  </Transition>
+      </template>
+
+      <div class="px-6 pb-6">
+        <slot />
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end items-center gap-3">
+          <slot name="footer" />
+        </div>
+      </template>
+    </UCard>
+  </UModal>
 </template>

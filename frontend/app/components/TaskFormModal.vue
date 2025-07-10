@@ -4,7 +4,6 @@ import { useTaskListStore } from "~/stores/task-list.store";
 import { ref } from "vue";
 import { z } from "zod";
 
-// Correction pour Nuxt UI v3.2.0
 const isOpen = defineModel<boolean>({ default: false });
 
 interface Emits {
@@ -16,10 +15,8 @@ const emit = defineEmits<Emits>();
 const taskStore = useTaskStore();
 const taskListStore = useTaskListStore();
 
-// Référence vers l'input date pour forcer l'ouverture du calendrier
 const dueDateInput = ref<HTMLInputElement | null>(null);
 
-// Schéma de validation avec messages personnalisés
 const formSchema = z.object({
   shortDescription: z
     .string()
@@ -43,7 +40,6 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-// État du formulaire
 const state = reactive<FormData>({
   shortDescription: "",
   longDescription: "",
@@ -51,11 +47,9 @@ const state = reactive<FormData>({
   listId: taskListStore.selected?.id || "",
 });
 
-// État des erreurs de validation
 const errors = reactive<Partial<Record<keyof FormData, string>>>({});
 const touched = reactive<Partial<Record<keyof FormData, boolean>>>({});
 
-// Validation en temps réel
 const validateField = (field: keyof FormData) => {
   try {
     const fieldSchema = formSchema.shape[field];
@@ -68,7 +62,6 @@ const validateField = (field: keyof FormData) => {
   }
 };
 
-// Watchers pour la validation en temps réel
 watchEffect(() => {
   if (touched.shortDescription) {
     validateField("shortDescription");
@@ -87,20 +80,17 @@ watchEffect(() => {
   }
 });
 
-// Date minimum (aujourd'hui)
 const minDate = computed(() => {
   const today = new Date();
   return today.toISOString().split("T")[0];
 });
 
-// Réinitialiser le formulaire
 watch(isOpen, (newValue) => {
   if (!newValue) {
     resetForm();
   }
 });
 
-// Mettre à jour le listId
 watch(
   () => taskListStore.selected,
   (newSelected) => {
@@ -117,7 +107,6 @@ function resetForm() {
   state.dueDate = "";
   state.listId = taskListStore.selected?.id || "";
 
-  // Réinitialiser les erreurs et touched
   Object.keys(errors).forEach((key) => {
     errors[key as keyof FormData] = undefined;
   });
@@ -126,7 +115,6 @@ function resetForm() {
   });
 }
 
-// Validation complète du formulaire
 const isFormValid = computed(() => {
   try {
     formSchema.parse(state);
@@ -137,12 +125,10 @@ const isFormValid = computed(() => {
 });
 
 async function onSubmit() {
-  // Marquer tous les champs comme touchés
   Object.keys(state).forEach((key) => {
     touched[key as keyof FormData] = true;
   });
 
-  // Valider tous les champs
   Object.keys(state).forEach((key) => {
     validateField(key as keyof FormData);
   });
@@ -162,12 +148,8 @@ async function onSubmit() {
     emit("success");
     isOpen.value = false;
   } catch {
-    // Gestion d'erreur déjà faite par le store
+    // Error handling is done by the store
   }
-}
-
-function cancel() {
-  isOpen.value = false;
 }
 </script>
 
@@ -178,7 +160,7 @@ function cancel() {
     icon="i-heroicons-clipboard-document-list"
   >
     <form @submit.prevent="onSubmit" class="space-y-6">
-      <!-- Description courte -->
+      <!-- Short description -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Description courte <span class="text-red-500">*</span>
@@ -210,18 +192,12 @@ function cancel() {
           v-if="errors.shortDescription && touched.shortDescription"
           class="mt-1 text-sm text-red-600 flex items-center"
         >
-          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <Icon name="i-heroicons-exclamation-circle" class="w-4 h-4 mr-1" />
           {{ errors.shortDescription }}
         </p>
       </div>
 
-      <!-- Date limite -->
+      <!-- Due date -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Date limite <span class="text-red-500">*</span>
@@ -255,18 +231,12 @@ function cancel() {
           v-if="errors.dueDate && touched.dueDate"
           class="mt-1 text-sm text-red-600 flex items-center"
         >
-          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <Icon name="i-heroicons-exclamation-circle" class="w-4 h-4 mr-1" />
           {{ errors.dueDate }}
         </p>
       </div>
 
-      <!-- Description longue -->
+      <!-- Long description -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Description détaillée
@@ -299,27 +269,13 @@ function cancel() {
           v-if="errors.longDescription && touched.longDescription"
           class="mt-1 text-sm text-red-600 flex items-center"
         >
-          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <Icon name="i-heroicons-exclamation-circle" class="w-4 h-4 mr-1" />
           {{ errors.longDescription }}
         </p>
       </div>
     </form>
 
     <template #footer>
-      <button
-        type="button"
-        class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 font-medium"
-        @click="cancel"
-        :disabled="taskStore.loading"
-      >
-        Annuler
-      </button>
       <button
         type="button"
         :class="[
@@ -332,41 +288,12 @@ function cancel() {
         @click="onSubmit"
         :disabled="!isFormValid || taskStore.loading"
       >
-        <svg
-          v-if="!taskStore.loading"
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          ></path>
-        </svg>
-        <svg
-          v-else
+        <Icon
+          v-if="taskStore.loading"
+          name="i-heroicons-arrow-path"
           class="animate-spin h-5 w-5"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          ></circle>
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
-        </svg>
+        />
+        <Icon v-else name="i-heroicons-plus" class="w-5 h-5" />
         {{ taskStore.loading ? "Création..." : "Créer la tâche" }}
       </button>
     </template>

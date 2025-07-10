@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useTaskListStore } from "~/stores/task-list.store";
+import { ref, computed } from "vue";
 import { z } from "zod";
 
 const isOpen = defineModel<boolean>({ default: false });
@@ -9,33 +10,21 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>();
-
 const taskListStore = useTaskListStore();
 
-// Schéma de validation
 const formSchema = z.object({
   name: z
     .string()
     .min(3, "Le nom doit contenir au moins 3 caractères")
-    .max(50, "Le nom ne peut pas dépasser 50 caractères")
-    .regex(
-      /^[a-zA-Z0-9À-ÿ\s\-']+$/,
-      "Le nom contient des caractères non autorisés"
-    ),
+    .max(50, "Le nom ne peut pas dépasser 50 caractères"),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-// État du formulaire
-const state = reactive<FormData>({
-  name: "",
-});
-
-// État des erreurs
+const state = reactive<FormData>({ name: "" });
 const errors = reactive<Partial<Record<keyof FormData, string>>>({});
 const touched = reactive<Partial<Record<keyof FormData, boolean>>>({});
 
-// Validation en temps réel
 const validateField = (field: keyof FormData) => {
   try {
     const fieldSchema = formSchema.shape[field];
@@ -48,14 +37,15 @@ const validateField = (field: keyof FormData) => {
   }
 };
 
-// Watcher pour validation en temps réel
-watchEffect(() => {
-  if (touched.name) {
-    validateField("name");
+watch(
+  () => state.name,
+  () => {
+    if (touched.name) {
+      validateField("name");
+    }
   }
-});
+);
 
-// Réinitialiser le formulaire
 watch(isOpen, (newValue) => {
   if (!newValue) {
     resetForm();
@@ -68,14 +58,8 @@ function resetForm() {
   touched.name = false;
 }
 
-// Validation du formulaire
 const isFormValid = computed(() => {
-  try {
-    formSchema.parse(state);
-    return true;
-  } catch {
-    return false;
-  }
+  return formSchema.safeParse(state).success;
 });
 
 async function onSubmit() {
@@ -91,12 +75,8 @@ async function onSubmit() {
     emit("success");
     isOpen.value = false;
   } catch {
-    // Gestion d'erreur déjà faite par le store
+    // Error handling is done by the store
   }
-}
-
-function cancel() {
-  isOpen.value = false;
 }
 </script>
 
@@ -115,7 +95,7 @@ function cancel() {
           <input
             v-model="state.name"
             type="text"
-            placeholder="Ex: Projets personnels"
+            placeholder="Ex: Projets professionnels"
             :class="[
               'w-full px-4 py-3 border rounded-lg transition-all duration-200',
               'placeholder-gray-400 text-gray-900',
@@ -126,7 +106,6 @@ function cancel() {
                 : 'border-gray-300 bg-white',
             ]"
             @blur="touched.name = true"
-            @keyup.enter="onSubmit"
             :disabled="taskListStore.loading"
           />
           <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -139,18 +118,8 @@ function cancel() {
           v-if="errors.name && touched.name"
           class="mt-1 text-sm text-red-600 flex items-center"
         >
-          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <Icon name="i-heroicons-exclamation-circle" class="w-4 h-4 mr-1" />
           {{ errors.name }}
-        </p>
-        <p class="mt-2 text-sm text-gray-600">
-          Donnez un nom descriptif à votre liste pour mieux organiser vos
-          tâches.
         </p>
       </div>
     </form>
@@ -158,14 +127,8 @@ function cancel() {
     <template #footer>
       <button
         type="button"
-        class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 font-medium"
-        @click="cancel"
-        :disabled="taskListStore.loading"
-      >
-        Annuler
-      </button>
-      <button
-        type="button"
+        @click="onSubmit"
+        :disabled="!isFormValid || taskListStore.loading"
         :class="[
           'px-5 py-2.5 rounded-lg font-medium transition-all duration-200',
           'flex items-center gap-2',
@@ -173,44 +136,13 @@ function cancel() {
             ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow'
             : 'bg-gray-300 text-gray-500 cursor-not-allowed',
         ]"
-        @click="onSubmit"
-        :disabled="!isFormValid || taskListStore.loading"
       >
-        <svg
-          v-if="!taskListStore.loading"
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          ></path>
-        </svg>
-        <svg
-          v-else
+        <Icon
+          v-if="taskListStore.loading"
+          name="i-heroicons-arrow-path"
           class="animate-spin h-5 w-5"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          ></circle>
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
-        </svg>
+        />
+        <Icon v-else name="i-heroicons-plus" class="w-5 h-5" />
         {{ taskListStore.loading ? "Création..." : "Créer la liste" }}
       </button>
     </template>

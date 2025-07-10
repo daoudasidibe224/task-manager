@@ -4,7 +4,7 @@
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
-    <UNotifications class="fixed bottom-4 right-4 z-50 max-w-sm w-full" />
+    <UNotifications class="fixed bottom-4 right-4 z-[9999] max-w-sm w-full" />
   </div>
 </template>
 

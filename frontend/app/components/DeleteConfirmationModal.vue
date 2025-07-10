@@ -1,23 +1,20 @@
 <script setup lang="ts">
-// Correction pour Nuxt UI v3.2.0
 const isOpen = defineModel<boolean>({ default: false });
 
 interface Props {
   title: string;
   message: string;
   confirmLabel?: string;
-  cancelLabel?: string;
   confirmColor?: string;
   loading?: boolean;
 }
 
 interface Emits {
-  (e: "confirm" | "cancel"): void;
+  (e: "confirm"): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   confirmLabel: "Supprimer",
-  cancelLabel: "Annuler",
   confirmColor: "red",
   loading: false,
 });
@@ -26,11 +23,6 @@ const emit = defineEmits<Emits>();
 
 function confirm() {
   emit("confirm");
-  isOpen.value = false;
-}
-
-function cancel() {
-  emit("cancel");
   isOpen.value = false;
 }
 </script>
@@ -44,18 +36,26 @@ function cancel() {
     </div>
 
     <template #footer>
-      <UButton color="gray" variant="outline" size="md" @click="cancel">
-        {{ props.cancelLabel }}
-      </UButton>
-      <UButton
-        color="red"
-        variant="solid"
-        size="md"
-        :loading="props.loading"
+      <button
+        type="button"
+        :class="[
+          'px-5 py-2.5 rounded-lg font-medium transition-all duration-200',
+          'flex items-center gap-2',
+          !props.loading
+            ? 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow'
+            : 'bg-red-400 text-white cursor-not-allowed',
+        ]"
         @click="confirm"
+        :disabled="props.loading"
       >
+        <Icon
+          v-if="props.loading"
+          name="i-heroicons-arrow-path"
+          class="animate-spin h-5 w-5"
+        />
+        <Icon v-else name="i-heroicons-trash" class="w-5 h-5" />
         {{ props.confirmLabel }}
-      </UButton>
+      </button>
     </template>
   </SimpleModal>
 </template>
