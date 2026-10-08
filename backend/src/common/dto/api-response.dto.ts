@@ -1,17 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class ApiResponseDto<T = any> {
+export class ApiResponseDto<T = unknown> {
   @ApiProperty({
     description: 'Indique si la requête a réussi',
     example: true,
   })
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty({
     description: 'Message descriptif de la réponse',
     example: 'Utilisateur créé avec succès',
   })
-  message: string;
+  message!: string;
 
   @ApiProperty({
     description: 'Données de la réponse (optionnel)',
@@ -32,7 +32,7 @@ export class ApiResponseDto<T = any> {
     example: '2025-06-28T10:30:00.000Z',
     type: Date,
   })
-  timestamp: Date;
+  timestamp!: Date;
 
   constructor(success: boolean, message: string, data?: T, errors?: string[]) {
     this.success = success;

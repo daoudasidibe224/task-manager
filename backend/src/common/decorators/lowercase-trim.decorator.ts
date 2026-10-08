@@ -7,7 +7,7 @@ import { Transform } from 'class-transformer';
  * Utilise class-transformer pour appliquer la transformation lors de la désérialisation
  */
 export function ToLowerCaseAndTrim(): PropertyDecorator {
-  return Transform(({ value }: { value: string }) => {
+  return Transform(({ value }: { value: unknown }) => {
     if (typeof value === 'string') {
       return value.toLowerCase().trim();
     }

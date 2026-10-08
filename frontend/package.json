@@ -1,36 +1,26 @@
 {
-  "name": "nuxt-app",
+  "name": "task-manager-client",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "nuxt dev --host 127.0.0.1 --port 4312",
     "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
+    "preview": "nuxt preview --host 127.0.0.1 --port 4312",
+    "typecheck": "nuxt typecheck",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@iconify-json/heroicons": "^1.2.1",
-    "@nuxt/eslint": "1.4.1",
-    "@nuxt/icon": "1.14.0",
-    "@nuxt/ui": "^2.18.7",
-    "@pinia/nuxt": "^0.11.1",
-    "eslint": "^9.29.0",
-    "nuxt": "^3.13.0",
-    "pinia": "^3.0.3",
-    "vue": "latest",
-    "vue-router": "latest",
-    "zod": "^3.23.8"
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.141",
+    "@nuxt/ui": "^4.11.3",
+    "nuxt": "^4.6.0",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.43",
+    "vue-router": "^5.4.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@tailwindcss/aspect-ratio": "^0.4.2",
-    "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/typography": "^0.5.16",
-    "autoprefixer": "^10.4.21",
-    "pinia-plugin-persistedstate": "^4.4.1",
-    "postcss": "^8.5.6",
-    "puppeteer": "^23.11.1",
-    "tailwindcss": "^3.4.17"
-  },
-  "packageManager": "pnpm@10.12.4+sha512.5ea8b0deed94ed68691c9bad4c955492705c5eeb8a87ef86bc62c74a26b037b08ff9570f108b2e4dbd1dd1a9186fea925e527f141c648e85af45631074680184"
+    "vue-tsc": "^3.3.12"
+  }
 }

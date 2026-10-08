@@ -1,140 +1,127 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-import { UserService } from '../user/user.service';
-import { LoginDto } from './dto/login.dto';
-import { UserResponseDto } from '../user/dto/user-response.dto';
-import { CreateUserDto } from '../user/dto/create-user.dto';
-import { JwtPayload } from './types/auth';
-import { AuthTokens } from './interceptors/auth-cookie.interceptor';
-import { ApiResponseDto } from '../common/dto/api-response.dto';
-
+import bcrypt from 'bcrypt';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
+import { UserService } from '../user/user.service.js';
+import { PrismaService } from '../prisma.service.js';
+import { LoginDto } from './dto/login.dto.js';
+import { CreateUserDto } from '../user/dto/create-user.dto.js';
+import { UserResponseDto } from '../user/dto/user-response.dto.js';
+import {
+  jwtPayloadSchema,
+  type JwtPayload,
+  type AuthTokens,
+} from './types/auth.js';
+import { ApiResponseDto } from '../common/dto/api-response.dto.js';
+const digest = (value: string) =>
+  createHash('sha256').update(value).digest('hex');
 @Injectable()
 export class AuthService {
   constructor(
-    private userService: UserService,
-    private jwtService: JwtService,
-    private configService: ConfigService,
+    private users: UserService,
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private config: ConfigService,
   ) {}
-
-  /**
-   * Génère les tokens d'authentification
-   */
-  private generateTokens(user: { email: string; id: string }): AuthTokens {
-    const payload: JwtPayload = {
-      email: user.email,
-      sub: user.id,
+  private tokens(payload: JwtPayload): AuthTokens {
+    return {
+      accessToken: this.jwt.sign(payload, {
+        expiresIn: 900,
+        algorithm: 'HS256',
+      }),
+      refreshToken: this.jwt.sign(payload, {
+        secret: this.config.getOrThrow<string>('auth.refreshTokenSecret'),
+        expiresIn: 604800,
+        algorithm: 'HS256',
+        jwtid: randomUUID(),
+      }),
     };
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('auth.refreshTokenSecret'),
-      expiresIn: this.configService.get<string>('auth.refreshTokenExpiresIn'),
+  }
+  async login(credentials: LoginDto) {
+    const user = await this.users.findByEmailWithPassword(credentials.email);
+    if (!user || !(await bcrypt.compare(credentials.password, user.password)))
+      throw new UnauthorizedException(
+        'Adresse e-mail ou mot de passe incorrect.',
+      );
+    const sessionId = randomUUID();
+    const tokens = this.tokens({
+      sub: user.id,
+      email: user.email,
+      sid: sessionId,
     });
-
-    return { accessToken, refreshToken };
-  }
-
-  async validateUser(
-    email: string,
-    password: string,
-  ): Promise<Omit<UserResponseDto, 'password'> | null> {
-    const user = await this.userService.findByEmailWithPassword(email);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...result } = user;
-      return result as Omit<UserResponseDto, 'password'>;
-    }
-    return null;
-  }
-
-  async login(loginDto: LoginDto): Promise<ApiResponseDto> {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException('Email ou mot de passe incorrect');
-    }
-
-    const typedUser = user as { email: string; id: string };
-    const tokens = this.generateTokens(typedUser);
-
-    // Stocker le refresh token hashé en base
-    await this.userService.updateRefreshToken(
-      typedUser.id,
-      tokens.refreshToken,
-    );
-
-    const userResponse = new UserResponseDto(typedUser);
+    await this.prisma.session.create({
+      data: {
+        id: sessionId,
+        userId: user.id,
+        refreshHash: digest(tokens.refreshToken),
+        expiresAt: new Date(Date.now() + 604800000),
+      },
+    });
     return ApiResponseDto.success('Connexion réussie', {
-      user: userResponse,
+      user: new UserResponseDto(user),
       tokens,
     });
   }
-
-  async register(createUserDto: CreateUserDto): Promise<ApiResponseDto> {
-    const user = await this.userService.create(createUserDto);
+  async register(data: CreateUserDto) {
     return ApiResponseDto.success(
-      'Inscription réussie. Vous pouvez maintenant vous connecter.',
-      { user },
+      'Votre compte est créé. Vous pouvez vous connecter.',
+      { user: await this.users.create(data) },
     );
   }
-
-  async refreshTokens(refreshToken: string): Promise<ApiResponseDto> {
+  async refreshTokens(token: string) {
+    let payload: JwtPayload;
     try {
-      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
-        secret: this.configService.get<string>('auth.refreshTokenSecret'),
-      });
-
-      const user = await this.userService.findByEmailWithPassword(
-        payload.email,
+      payload = jwtPayloadSchema.parse(
+        this.jwt.verify<Record<string, unknown>>(token, {
+          secret: this.config.getOrThrow<string>('auth.refreshTokenSecret'),
+          algorithms: ['HS256'],
+        }),
       );
-      if (!user || !user.refreshToken) {
-        throw new UnauthorizedException('Token de rafraîchissement invalide');
-      }
-
-      const isRefreshTokenValid = await bcrypt.compare(
-        refreshToken,
-        user.refreshToken,
-      );
-      if (!isRefreshTokenValid) {
-        throw new UnauthorizedException('Token de rafraîchissement invalide');
-      }
-
-      const newTokens = this.generateTokens(user);
-
-      // Mettre à jour le refresh token en base
-      await this.userService.updateRefreshToken(
-        user.id,
-        newTokens.refreshToken,
-      );
-
-      const userResponse = new UserResponseDto(user);
-      return ApiResponseDto.success('Tokens rafraîchis', {
-        user: userResponse,
-        tokens: newTokens,
-      });
     } catch {
-      throw new BadRequestException('Token de rafraîchissement invalide');
+      throw new UnauthorizedException(
+        'Session expirée. Connectez-vous à nouveau.',
+      );
     }
+    const session = await this.prisma.session.findUnique({
+      where: { id: payload.sid },
+      include: { user: true },
+    });
+    const hash = digest(token);
+    if (
+      !session ||
+      session.userId !== payload.sub ||
+      session.expiresAt.getTime() < Date.now() ||
+      session.refreshHash.length !== hash.length ||
+      !timingSafeEqual(Buffer.from(session.refreshHash), Buffer.from(hash))
+    )
+      throw new UnauthorizedException(
+        'Session expirée. Connectez-vous à nouveau.',
+      );
+    const tokens = this.tokens(payload);
+    const update = await this.prisma.session.updateMany({
+      where: { id: session.id, refreshHash: hash },
+      data: {
+        refreshHash: digest(tokens.refreshToken),
+        expiresAt: new Date(Date.now() + 604800000),
+      },
+    });
+    if (update.count !== 1)
+      throw new UnauthorizedException('Ce jeton a déjà été utilisé.');
+    return ApiResponseDto.success('Session renouvelée', {
+      user: new UserResponseDto(session.user),
+      tokens,
+    });
   }
-
-  async logout(userId: string): Promise<ApiResponseDto> {
-    // Invalider le refresh token en le supprimant de la base de données
-    await this.userService.invalidateRefreshToken(userId);
-
+  async logout(userId: string, sessionId: string) {
+    await this.prisma.session.deleteMany({ where: { id: sessionId, userId } });
     return ApiResponseDto.success('Déconnexion réussie', {
       clearCookies: true,
     });
   }
-
-  async getProfile(userId: string): Promise<ApiResponseDto> {
-    const user = await this.userService.findOne(userId);
-    return ApiResponseDto.success('Profil récupéré avec succès', {
-      user,
+  async getProfile(userId: string) {
+    return ApiResponseDto.success('Profil', {
+      user: await this.users.findOne(userId),
     });
   }
 }

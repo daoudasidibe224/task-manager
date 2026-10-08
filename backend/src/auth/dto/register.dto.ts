@@ -1,4 +1,4 @@
-import { CreateUserDto } from '../../user/dto/create-user.dto';
+import { CreateUserDto } from '../../user/dto/create-user.dto.js';
 
 export class RegisterDto extends CreateUserDto {
   // Le RegisterDto est identique au CreateUserDto

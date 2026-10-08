@@ -1,50 +1,67 @@
+import 'reflect-metadata';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
-import * as cookieParser from 'cookie-parser';
-import * as dotenv from 'dotenv';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import {
-  appConfig,
-  corsConfig,
-  createSwaggerConfig,
-  validationConfig,
-  helmetConfig,
-} from './config';
-
-dotenv.config();
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Configuration du préfixe global
-  app.setGlobalPrefix(appConfig.globalPrefix);
-
-  // Configuration de Helmet
-  app.use(helmet(helmetConfig));
-
-  // Configuration des cookies
+import type { Request, Response, NextFunction } from 'express';
+import { AppModule } from './app.module.js';
+export async function createApplication() {
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn'],
+  });
+  const frontend = process.env.FRONTEND_URL || 'http://127.0.0.1:4312';
+  app.setGlobalPrefix('api');
+  app.use(helmet());
   app.use(cookieParser());
-
-  // Configuration CORS
-  app.enableCors(corsConfig);
-
-  // Configuration de la validation globale DTO
-  app.useGlobalPipes(new ValidationPipe(validationConfig));
-
-  // Configuration Swagger
-  const swaggerConfig = createSwaggerConfig();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api', app, document);
-
-  // Démarrage du serveur avec host et port configurés pour Docker
-  await app.listen(appConfig.port, appConfig.host);
-
-  // Messages de démarrage
-  console.log(`🚀 Server is running on ${appConfig.host}:${appConfig.port}`);
-  console.log(
-    `📚 Swagger documentation available at http://${appConfig.host}:${appConfig.port}/api`,
+  app.enableCors({ origin: frontend, credentials: true });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (
+      !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
+      req.headers.origin &&
+      req.headers.origin !== frontend
+    ) {
+      res
+        .status(403)
+        .json({ success: false, message: 'Origine non autorisée.' });
+      return;
+    }
+    next();
+  });
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: false },
+    }),
   );
+  const document = SwaggerModule.createDocument(
+    app,
+    new DocumentBuilder()
+      .setTitle('Mes listes de tâches API')
+      .setVersion('2.0')
+      .addCookieAuth('accessToken')
+      .build(),
+  );
+  SwaggerModule.setup('api/docs', app, document);
+  app.enableShutdownHooks();
+  return app;
 }
-void bootstrap();
+async function bootstrap() {
+  const app = await createApplication();
+  const port = Number(process.env.PORT || 8012);
+  await app.listen(port, process.env.HOST || '127.0.0.1');
+  console.log(`Mes listes de tâches API écoute sur ${port}`);
+}
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+)
+  bootstrap().catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

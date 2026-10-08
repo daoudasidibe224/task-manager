@@ -1,582 +1,675 @@
-<template>
-  <div class="min-h-screen bg-gray-50 font-sans">
-    <div class="flex h-screen">
-      <!-- Sidebar gauche -->
-      <div
-        :class="[
-          'bg-white border-r border-gray-200 flex flex-col transition-all duration-300',
-          sidebarCollapsed ? 'w-16' : 'w-1/4',
-        ]"
-      >
-        <div
-          class="p-4 border-b border-gray-200 flex items-center justify-between"
-        >
-          <div v-if="!sidebarCollapsed">
-            <h2 class="text-lg font-semibold text-gray-900 mb-3">Mes listes</h2>
-          </div>
-
-          <button
-            :class="sidebarCollapsed ? 'mx-auto' : ''"
-            class="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors"
-            @click="toggleSidebar"
-          >
-            <Icon
-              :name="
-                sidebarCollapsed
-                  ? 'i-heroicons-chevron-right'
-                  : 'i-heroicons-chevron-left'
-              "
-              class="w-5 h-5"
-            />
-          </button>
-        </div>
-
-        <div v-if="!sidebarCollapsed" class="p-4 border-b border-gray-200">
-          <button
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
-            @click="showCreateTaskListModal = true"
-          >
-            <Icon name="i-heroicons-plus" class="w-4 h-4" />
-            Nouvelle liste
-          </button>
-        </div>
-
-        <div v-else class="p-2">
-          <button
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center"
-            title="Nouvelle liste"
-            @click="showCreateTaskListModal = true"
-          >
-            <Icon name="i-heroicons-plus" class="w-4 h-4" />
-          </button>
-        </div>
-
-        <div class="flex-1 overflow-auto p-4" @click="deselectList">
-          <div class="space-y-2">
-            <div
-              v-for="list in lists"
-              :key="list.id"
-              :class="[
-                'flex items-center justify-between rounded-lg hover:bg-gray-100 cursor-pointer transition-colors',
-                sidebarCollapsed ? 'p-2 justify-center' : 'p-3',
-                selectedList?.id === list.id
-                  ? 'bg-blue-50 border border-blue-200'
-                  : '',
-              ]"
-              :title="sidebarCollapsed ? list.name : ''"
-              @click.stop="selectList(list)"
-            >
-              <div
-                :class="
-                  sidebarCollapsed ? 'flex justify-center' : 'flex items-center'
-                "
-              >
-                <div
-                  v-if="sidebarCollapsed"
-                  class="w-6 h-6 bg-blue-100 rounded flex items-center justify-center"
-                >
-                  <Icon
-                    name="i-heroicons-folder"
-                    class="w-3 h-3 text-blue-600"
-                  />
-                </div>
-                <span v-else class="text-gray-900 font-medium truncate">{{
-                  list.name
-                }}</span>
-              </div>
-
-              <button
-                v-if="!sidebarCollapsed"
-                class="text-red-500 hover:text-red-700 p-1 rounded transition-colors"
-                @click.stop="confirmDeleteTaskList(list)"
-              >
-                <Icon name="i-heroicons-trash" class="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <div
-            v-if="
-              lists.length === 0 && !sidebarCollapsed && !taskListStore.loading
-            "
-            class="text-center text-gray-500 py-8 card border-dashed bg-gray-100/60"
-          >
-            <Icon
-              name="i-heroicons-folder"
-              class="w-8 h-8 mx-auto mb-2 text-gray-300"
-            />
-            <p class="text-sm">Aucune liste créée</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Contenu principal -->
-      <div class="flex-1 flex flex-col bg-white">
-        <div
-          class="p-6 border-b border-gray-200 flex justify-between items-center"
-        >
-          <div>
-            <h1 class="text-2xl font-bold text-gray-900">Tâches</h1>
-          </div>
-          <div class="flex items-center gap-3">
-            <ClientOnly>
-              <UButton
-                v-if="selectedList"
-                class="btn-gradient"
-                size="md"
-                icon="i-heroicons-plus"
-                @click="showCreateTaskModal = true"
-              >
-                Nouvelle tâche
-              </UButton>
-            </ClientOnly>
-
-            <UButton
-              color="gray"
-              variant="outline"
-              size="md"
-              icon="i-heroicons-arrow-right-on-rectangle"
-              @click="logout"
-              title="Déconnexion"
-            >
-            </UButton>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-6">
-          <Transition name="content-fade" mode="out-in">
-            <div
-              v-if="!selectedList"
-              key="no-selection"
-              class="text-center text-gray-500 mt-20"
-            >
-              <Icon
-                name="i-heroicons-clipboard-document-list"
-                class="w-16 h-16 mx-auto mb-4 text-gray-300"
-              />
-              <p class="text-lg">Sélectionnez une liste pour voir ses tâches</p>
-            </div>
-
-            <div
-              v-else-if="isLoadingTasks"
-              key="loading"
-              class="space-y-4 pt-6"
-            >
-              <USkeleton v-for="i in 3" :key="i" class="h-16 w-full" />
-            </div>
-
-            <div v-else key="tasks-content" class="space-y-6">
-              <div>
-                <h3
-                  class="text-lg font-semibold mb-4 text-gray-900 flex items-center"
-                >
-                  <Icon
-                    name="i-heroicons-clipboard-document-list"
-                    class="w-5 h-5 mr-2 text-blue-600"
-                  />
-                  {{ selectedList?.name || "Tâches à faire" }}
-                </h3>
-
-                <div class="space-y-3">
-                  <div
-                    v-for="task in pendingTasks"
-                    :key="task.id"
-                    class="flex items-center p-4 card card-hover cursor-pointer group"
-                    :class="{
-                      'ring-2 ring-blue-500 shadow-sm':
-                        selectedTask?.id === task.id,
-                    }"
-                    @click="selectTask(task)"
-                  >
-                    <input
-                      type="checkbox"
-                      class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      @click.stop="completeTask(task)"
-                    />
-                    <div class="flex-1 min-w-0">
-                      <p class="font-medium text-gray-900 truncate">
-                        {{ task.title }}
-                      </p>
-                      <p class="text-sm text-gray-500 mt-1">
-                        Échéance: {{ formatDate(task.dueDate) }}
-                      </p>
-                    </div>
-                    <div
-                      class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <button
-                        class="text-red-500 hover:text-red-700 p-1 rounded transition-colors"
-                        @click.stop="confirmDeleteTask(task)"
-                      >
-                        <Icon name="i-heroicons-trash" class="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  v-if="pendingTasks.length === 0"
-                  class="text-gray-500 text-center py-8"
-                >
-                  <Icon
-                    name="i-heroicons-check-circle"
-                    class="w-8 h-8 mx-auto mb-2 text-gray-300"
-                  />
-                  <p class="text-sm">Toutes les tâches sont terminées !</p>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  class="flex items-center text-lg font-semibold mb-4 text-gray-900 hover:text-gray-700 transition-colors"
-                  @click="showCompleted = !showCompleted"
-                >
-                  <Icon
-                    name="i-heroicons-chevron-down"
-                    class="w-5 h-5 mr-2 transition-transform"
-                    :class="{ 'rotate-90': showCompleted }"
-                  />
-                  Tâches terminées ({{ completedTasks.length }})
-                </button>
-
-                <div v-if="showCompleted" class="space-y-3">
-                  <div
-                    v-for="task in completedTasks"
-                    :key="task.id"
-                    class="flex items-center p-4 card card-hover bg-green-50 border-green-200"
-                  >
-                    <button
-                      class="mr-4 text-green-600 hover:text-green-800 transition-colors"
-                      title="Restaurer la tâche"
-                      @click="restoreTask(task)"
-                    >
-                      <Icon name="i-heroicons-arrow-uturn-left" />
-                    </button>
-                    <div class="flex-1">
-                      <p class="font-medium text-gray-900 line-through">
-                        {{ task.title }}
-                      </p>
-                      <p class="text-sm text-gray-500">
-                        Terminée le {{ formatDate(task.completedAt) }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Transition>
-        </div>
-      </div>
-
-      <ClientOnly>
-        <div
-          v-if="selectedTask"
-          class="w-1/4 bg-white border-l border-gray-200 flex flex-col animate-fade-in-right"
-        >
-          <div class="p-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">
-              Détails de la tâche
-            </h3>
-          </div>
-
-          <div class="flex-1 overflow-auto p-4">
-            <div class="space-y-4">
-              <div>
-                <h4 class="font-medium text-gray-900 mb-2">
-                  {{ selectedTask.title }}
-                </h4>
-                <UBadge
-                  :color="selectedTask.completed ? 'green' : 'yellow'"
-                  variant="subtle"
-                >
-                  {{ selectedTask.completed ? "Terminée" : "En cours" }}
-                </UBadge>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1"
-                  >Date de création</label
-                >
-                <p class="text-sm text-gray-600">
-                  {{ formatDate(selectedTask.createdAt) }}
-                </p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1"
-                  >Date limite</label
-                >
-                <p class="text-sm text-gray-600">
-                  {{ formatDate(selectedTask.dueDate) }}
-                </p>
-              </div>
-
-              <div v-if="selectedTask.description">
-                <label class="block text-sm font-medium text-gray-700 mb-1"
-                  >Description</label
-                >
-                <p class="text-sm text-gray-600 whitespace-pre-wrap">
-                  {{ selectedTask.description }}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div class="p-4 border-t border-gray-200">
-            <button
-              class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center justify-center gap-2"
-              @click="confirmDeleteSelectedTask"
-            >
-              <Icon name="i-heroicons-trash" class="w-4 h-4" />
-              Supprimer la tâche
-            </button>
-          </div>
-        </div>
-      </ClientOnly>
-    </div>
-
-    <TaskListFormModal
-      v-model="showCreateTaskListModal"
-      @success="handleTaskListCreated"
-    />
-
-    <TaskFormModal v-model="showCreateTaskModal" @success="handleTaskCreated" />
-
-    <DeleteConfirmationModal
-      v-model="showDeleteTaskListModal"
-      :title="`Supprimer la liste`"
-      :message="`Êtes-vous sûr de vouloir supprimer la liste « ${taskListToDelete?.name} » ? Toutes les tâches associées seront également supprimées.`"
-      confirm-label="Supprimer"
-      @confirm="handleDeleteTaskList"
-      @cancel="hideDeleteTaskListModal"
-    />
-
-    <DeleteConfirmationModal
-      v-model="showDeleteTaskModal"
-      :title="`Supprimer la tâche`"
-      :message="`Êtes-vous sûr de vouloir supprimer la tâche « ${taskToDelete?.shortDescription} » ?`"
-      confirm-label="Supprimer"
-      @confirm="handleDeleteTask"
-      @cancel="hideDeleteTaskModal"
-    />
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useTaskListStore } from "~/stores/task-list.store";
-import { useTaskStore } from "~/stores/task.store";
-import { useAuthStore } from "~/stores/auth.store";
-import { useTasks } from "~/composables/useTasks";
-import type { Task, TaskList } from "~/types";
-import { useNotifications } from "~/composables/useNotifications";
-
-interface TaskWithMappedProps
-  extends Omit<Task, "shortDescription" | "longDescription"> {
-  title: string;
-  description: string;
-  completedAt?: string;
-}
-
-definePageMeta({
-  layout: "dashboard",
+import { z } from "zod";
+import { userSchema, type Task, type TaskList } from "~/types/contracts";
+useHead({ title: "Mon espace · Mes listes de tâches" });
+const w = useWorkspace(),
+  api = useTaskApi();
+const route = useRoute();
+const view = ref(
+    typeof route.query.view === "string" ? route.query.view : "all",
+  ),
+  search = ref(""),
+  sort = ref("due"),
+  layout = ref("list"),
+  navOpen = ref(false),
+  notice = ref(""),
+  operationError = ref(""),
+  busy = ref(false);
+watch(view, (value) =>
+  navigateTo({ query: { ...route.query, view: value } }, { replace: true }),
+);
+watch(
+  () => route.query.view,
+  (value) => {
+    view.value = typeof value === "string" ? value : "all";
+  },
+);
+const taskOpen = ref(false),
+  editingTask = ref<Task>(),
+  listOpen = ref(false),
+  editingList = ref<TaskList>(),
+  listName = ref(""),
+  profileOpen = ref(false);
+const profile = reactive({
+  firstname: "",
+  lastname: "",
+  email: "",
+  password: "",
 });
-
-const taskListStore = useTaskListStore();
-const taskStore = useTaskStore();
-const authStore = useAuthStore();
-const { mappedPendingTasks, mappedCompletedTasks } = useTasks();
-
-const lists = computed(() => taskListStore.lists);
-const selectedList = computed(() => taskListStore.selected);
-
-const selectedTask = ref<TaskWithMappedProps | null>(null);
-const showCompleted = ref(false);
-const sidebarCollapsed = ref(false);
-const isLoadingTasks = ref(false);
-
-const showCreateTaskListModal = ref(false);
-const showCreateTaskModal = ref(false);
-const showDeleteTaskListModal = ref(false);
-const showDeleteTaskModal = ref(false);
-const taskListToDelete = ref<TaskList | null>(null);
-const taskToDelete = ref<Task | null>(null);
-
-const pendingTasks = mappedPendingTasks;
-const completedTasks = mappedCompletedTasks;
-
-const toggleSidebar = () => {
-  sidebarCollapsed.value = !sidebarCollapsed.value;
-};
-
-const deselectList = () => {
-  taskListStore.selectTaskList(null);
-  selectedTask.value = null;
-};
-
-const selectList = async (list: TaskList) => {
-  if (selectedList.value?.id === list.id) return;
-
-  taskListStore.selectTaskList(list);
-  selectedTask.value = null;
-  isLoadingTasks.value = true;
-
-  try {
-    await taskStore.fetchTasks({ listId: list.id });
-  } catch {
-    taskListStore.selectTaskList(null);
-    const { error: showError } = useNotifications();
-    showError("Impossible de charger les tâches de cette liste.", {
-      title: "Erreur de chargement",
-    });
-  } finally {
-    isLoadingTasks.value = false;
-  }
-};
-
-const selectTask = (task: TaskWithMappedProps) => {
-  const originalTask = taskStore.tasks.find((t) => t.id === task.id);
-  selectedTask.value = originalTask
-    ? {
-        ...originalTask,
-        title: originalTask.shortDescription,
-        description: originalTask.longDescription || "",
-        createdAt: originalTask.createdAt,
-        dueDate: originalTask.dueDate,
-      }
-    : null;
-};
-
-const confirmDeleteTaskList = (taskList: TaskList) => {
-  taskListToDelete.value = taskList;
-  showDeleteTaskListModal.value = true;
-};
-
-const confirmDeleteTask = (task: TaskWithMappedProps) => {
-  const originalTask = taskStore.tasks.find((t) => t.id === task.id);
-  if (originalTask) {
-    taskToDelete.value = originalTask;
-    showDeleteTaskModal.value = true;
-  }
-};
-
-const confirmDeleteSelectedTask = () => {
-  if (!selectedTask.value) return;
-  const originalTask = taskStore.tasks.find(
-    (t) => t.id === selectedTask.value!.id
+const confirm = ref<{
+  kind: "task" | "list" | "account";
+  id: string;
+  title: string;
+  detail: string;
+}>();
+const today = () => new Date().toLocaleDateString("en-CA");
+const pending = computed(() => w.tasks.value.filter((t) => !t.completed));
+const overdue = computed(() =>
+  pending.value.filter((t) => t.dueDate && t.dueDate.slice(0, 10) < today()),
+);
+const completed = computed(() => w.tasks.value.filter((t) => t.completed));
+const selectedList = computed(() =>
+  w.lists.value.find((l) => l.id === view.value),
+);
+const title = computed(
+  () =>
+    selectedList.value?.name ??
+    {
+      all: "Vue d’ensemble",
+      today: "Aujourd’hui",
+      overdue: "En retard",
+      done: "Terminées",
+    }[view.value] ??
+    "Vue d’ensemble",
+);
+const visible = computed(() => {
+  let tasks = w.tasks.value;
+  if (selectedList.value) tasks = selectedList.value.tasks;
+  else if (view.value === "today")
+    tasks = pending.value.filter((t) => t.dueDate?.slice(0, 10) === today());
+  else if (view.value === "overdue") tasks = overdue.value;
+  else if (view.value === "done") tasks = completed.value;
+  const query = search.value.trim().toLocaleLowerCase("fr");
+  tasks = tasks.filter((t) =>
+    `${t.shortDescription} ${t.longDescription ?? ""}`
+      .toLocaleLowerCase("fr")
+      .includes(query),
   );
-  if (originalTask) {
-    taskToDelete.value = originalTask;
-    showDeleteTaskModal.value = true;
+  return [...tasks].sort((a, b) =>
+    sort.value === "priority"
+      ? { HIGH: 0, NORMAL: 1, LOW: 2 }[a.priority] -
+        { HIGH: 0, NORMAL: 1, LOW: 2 }[b.priority]
+      : sort.value === "recent"
+        ? b.createdAt.localeCompare(a.createdAt)
+        : Number(a.completed) - Number(b.completed) ||
+          (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"),
+  );
+});
+const sections = computed(() =>
+  layout.value === "board"
+    ? [
+        { label: "À faire", tasks: visible.value.filter((t) => !t.completed) },
+        { label: "Terminées", tasks: visible.value.filter((t) => t.completed) },
+      ]
+    : [{ label: "", tasks: visible.value }],
+);
+const navItems = computed(() => [
+  {
+    id: "all",
+    label: "Vue d’ensemble",
+    icon: "i-lucide-layout-dashboard",
+    count: w.tasks.value.length,
+  },
+  {
+    id: "today",
+    label: "Aujourd’hui",
+    icon: "i-lucide-sun",
+    count: pending.value.filter((t) => t.dueDate?.slice(0, 10) === today())
+      .length,
+  },
+  {
+    id: "overdue",
+    label: "En retard",
+    icon: "i-lucide-clock-3",
+    count: overdue.value.length,
+  },
+  {
+    id: "done",
+    label: "Terminées",
+    icon: "i-lucide-circle-check",
+    count: completed.value.length,
+  },
+]);
+const listLabel = (id: string) =>
+  w.lists.value.find((l) => l.id === id)?.name ?? "";
+function select(id: string) {
+  view.value = id;
+  navOpen.value = false;
+  search.value = "";
+}
+function newList(list?: TaskList) {
+  editingList.value = list;
+  listName.value = list?.name ?? "";
+  operationError.value = "";
+  listOpen.value = true;
+}
+function newTask(task?: Task) {
+  if (!w.lists.value.length) {
+    newList();
+    return;
   }
-};
-
-const hideDeleteTaskListModal = () => {
-  showDeleteTaskListModal.value = false;
-  taskListToDelete.value = null;
-};
-
-const hideDeleteTaskModal = () => {
-  showDeleteTaskModal.value = false;
-  taskToDelete.value = null;
-};
-
-const handleTaskListCreated = async () => {
-  await taskListStore.fetchAllTaskLists();
-};
-
-const handleTaskCreated = async () => {
-  if (selectedList.value) {
-    await taskStore.fetchTasks({ listId: selectedList.value.id });
-  }
-};
-
-const handleDeleteTaskList = async () => {
-  if (!taskListToDelete.value) return;
-
+  editingTask.value = task;
+  taskOpen.value = true;
+}
+async function action(fn: () => Promise<void>, message: string) {
+  if (busy.value) return false;
+  busy.value = true;
+  operationError.value = "";
+  notice.value = "";
   try {
-    await taskListStore.deleteTaskList(taskListToDelete.value.id);
-    hideDeleteTaskListModal();
-  } catch {
-    // Gestion d'erreur déjà faite par le store
+    await fn();
+    notice.value = message;
+    return true;
+  } catch (cause) {
+    operationError.value = messageFrom(cause);
+    return false;
+  } finally {
+    busy.value = false;
   }
-};
-
-const handleDeleteTask = async () => {
-  if (!taskToDelete.value) return;
-
-  try {
-    await taskStore.deleteTask(taskToDelete.value.id);
-    if (selectedTask.value?.id === taskToDelete.value.id) {
-      selectedTask.value = null;
-    }
-    hideDeleteTaskModal();
-  } catch {
-    // Gestion d'erreur déjà faite par le store
+}
+async function saveList() {
+  if (
+    await action(async () => {
+      if (editingList.value)
+        await w.renameList(
+          editingList.value.id,
+          listName.value,
+          editingList.value.updatedAt,
+        );
+      else await w.createList(listName.value);
+    }, "Liste enregistrée.")
+  ) {
+    listOpen.value = false;
+    if (!editingList.value)
+      view.value =
+        w.lists.value.find((l) => l.name === listName.value.trim())?.id ??
+        "all";
   }
-};
-
-const completeTask = async (task: TaskWithMappedProps) => {
-  try {
-    await taskStore.updateTask(task.id, { completed: true });
-    if (selectedTask.value?.id === task.id) {
-      selectedTask.value = null;
-    }
-  } catch {
-    // Gestion d'erreur déjà faite par le store
-  }
-};
-
-const restoreTask = async (task: TaskWithMappedProps) => {
-  try {
-    await taskStore.updateTask(task.id, { completed: false });
-  } catch {
-    // Gestion d'erreur déjà faite par le store
-  }
-};
-
-const formatDate = (date: string | Date) => {
-  if (typeof date === "string") {
-    return new Date(date).toLocaleDateString("fr-FR");
-  }
-  return date.toLocaleDateString("fr-FR");
-};
-
-const logout = async () => {
-  await authStore.logout();
-};
-
+}
+function openProfile() {
+  if (w.user.value)
+    Object.assign(profile, {
+      firstname: w.user.value.firstname,
+      lastname: w.user.value.lastname,
+      email: w.user.value.email,
+      password: "",
+    });
+  operationError.value = "";
+  profileOpen.value = true;
+}
+async function saveProfile() {
+  if (
+    await action(async () => {
+      const user = w.user.value;
+      if (!user) return;
+      await api.send(`user/${user.id}`, userSchema, "PATCH", {
+        firstname: profile.firstname,
+        lastname: profile.lastname,
+        email: profile.email,
+        expectedUpdatedAt: user.updatedAt,
+        ...(profile.password ? { password: profile.password } : {}),
+      });
+      await w.load();
+    }, "Profil enregistré.")
+  )
+    profileOpen.value = false;
+}
+async function removeConfirmed() {
+  const target = confirm.value;
+  if (!target) return;
+  if (
+    await action(async () => {
+      if (target.kind === "task") await w.deleteTask(target.id);
+      else if (target.kind === "list") {
+        await w.removeList(target.id);
+        view.value = "all";
+      } else {
+        await api.send(`user/${target.id}`, z.unknown(), "DELETE");
+        w.user.value = null;
+        w.lists.value = [];
+        w.loaded.value = false;
+        await navigateTo("/login");
+      }
+    }, "Suppression effectuée.")
+  )
+    confirm.value = undefined;
+}
+function exportData() {
+  const data = {
+    format: "mes-listes-de-taches",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    lists: w.lists.value,
+  };
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+  );
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mes-taches-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  notice.value = "Export téléchargé. Conservez ce fichier dans un endroit sûr.";
+}
 onMounted(async () => {
   try {
-    taskListStore.validatePersistedState();
-    await taskListStore.fetchAllTaskLists();
-    taskStore.subscribeToTaskListChanges();
-    taskListStore.selectTaskList(null);
+    await w.load();
+    if (!w.user.value) await navigateTo("/login");
   } catch {
-    const { error: showError } = useNotifications();
-    showError("Une erreur est survenue lors du chargement des données.", {
-      title: "Erreur",
-    });
+    /* The visible error offers a retry. */
   }
 });
 </script>
-
-<style scoped>
-.content-fade-enter-active,
-.content-fade-leave-active {
-  transition: all 0.3s ease-in-out;
-}
-.content-fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-.content-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-.content-fade-enter-to,
-.content-fade-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-}
-</style>
+<template>
+  <div class="workspace">
+    <div v-if="navOpen" class="nav-overlay" @click="navOpen = false" />
+    <aside class="sidebar" :class="{ opened: navOpen }">
+      <NuxtLink class="workspace-brand" to="/dashboard"
+        ><span><UIcon name="i-lucide-list-checks" /></span>Mes listes de
+        tâches</NuxtLink
+      ><UButton
+        class="close-nav"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-x"
+        aria-label="Fermer la navigation"
+        @click="navOpen = false"
+      />
+      <p class="sidebar-label">MON ESPACE</p>
+      <nav aria-label="Vues des tâches">
+        <button
+          v-for="item in navItems"
+          :key="item.id"
+          :class="{ active: view === item.id }"
+          @click="select(item.id)"
+        >
+          <UIcon :name="item.icon" /><span>{{ item.label }}</span
+          ><small>{{ item.count }}</small>
+        </button>
+      </nav>
+      <div class="list-heading">
+        <p class="sidebar-label">MES LISTES</p>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-plus"
+          aria-label="Créer une liste"
+          @click="newList()"
+        />
+      </div>
+      <nav aria-label="Listes">
+        <button
+          v-for="list in w.lists.value"
+          :key="list.id"
+          :class="{ active: view === list.id }"
+          @click="select(list.id)"
+        >
+          <span class="list-dot" /><span>{{ list.name }}</span
+          ><small>{{ list.tasks.filter((t) => !t.completed).length }}</small>
+        </button>
+      </nav>
+      <button
+        v-if="!w.lists.value.length"
+        class="add-first-list"
+        @click="newList()"
+      >
+        Créer ma première liste
+      </button>
+      <div class="sidebar-bottom">
+        <p>Un peu d’ordre.<br />De la place pour le reste.</p>
+        <button class="profile-button" @click="openProfile">
+          <span class="avatar">{{ w.user.value?.firstname.slice(0, 1) }}</span
+          ><span
+            ><strong
+              >{{ w.user.value?.firstname }}
+              {{ w.user.value?.lastname }}</strong
+            ><small>Gérer mon compte</small></span
+          ><UIcon name="i-lucide-settings" />
+        </button>
+      </div>
+    </aside>
+    <main class="workspace-main">
+      <header class="workspace-top">
+        <UButton
+          class="open-nav"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-menu"
+          aria-label="Ouvrir la navigation"
+          @click="navOpen = true"
+        />
+        <p>
+          {{
+            new Date().toLocaleDateString("fr-FR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })
+          }}
+        </p>
+        <div>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-download"
+            aria-label="Exporter mes tâches"
+            @click="exportData"
+          /><UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-log-out"
+            aria-label="Se déconnecter"
+            :loading="busy"
+            @click="action(w.logout, '')"
+          />
+        </div>
+      </header>
+      <div class="page-content">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">
+              Bonjour {{ w.user.value?.firstname || "à vous" }}
+            </p>
+            <h1>{{ title }}</h1>
+            <p>Tâches, priorités et échéances de votre agenda.</p>
+          </div>
+          <UButton icon="i-lucide-plus" size="lg" @click="newTask()"
+            >Nouvelle tâche</UButton
+          >
+        </div>
+        <div v-if="view === 'all'" class="summary-grid">
+          <button @click="select('all')">
+            <span>À faire</span><strong>{{ pending.length }}</strong
+            ><UIcon name="i-lucide-list-todo" /></button
+          ><button @click="select('overdue')">
+            <span>En retard</span><strong>{{ overdue.length }}</strong
+            ><UIcon name="i-lucide-clock-3" /></button
+          ><button @click="select('done')">
+            <span>Terminées</span><strong>{{ completed.length }}</strong
+            ><UIcon name="i-lucide-circle-check" />
+          </button>
+        </div>
+        <p v-if="notice" role="status" class="notice">{{ notice }}</p>
+        <div
+          v-if="operationError || w.error.value"
+          role="alert"
+          class="form-error"
+        >
+          {{ operationError || w.error.value
+          }}<UButton
+            v-if="w.error.value"
+            variant="ghost"
+            @click="action(w.load, 'Données actualisées.')"
+            >Réessayer</UButton
+          >
+        </div>
+        <section class="task-panel">
+          <div class="task-toolbar">
+            <label class="search-box"
+              ><UIcon name="i-lucide-search" /><input
+                v-model="search"
+                type="search"
+                placeholder="Rechercher une tâche"
+                aria-label="Rechercher une tâche"
+            /></label>
+            <div class="toolbar-options">
+              <select v-model="sort" aria-label="Trier les tâches">
+                <option value="due">Échéance</option>
+                <option value="priority">Priorité</option>
+                <option value="recent">Plus récentes</option>
+              </select>
+              <div class="view-switch">
+                <UButton
+                  :variant="layout === 'list' ? 'soft' : 'ghost'"
+                  color="neutral"
+                  icon="i-lucide-list"
+                  aria-label="Afficher en liste"
+                  :aria-pressed="layout === 'list'"
+                  @click="layout = 'list'"
+                /><UButton
+                  :variant="layout === 'board' ? 'soft' : 'ghost'"
+                  color="neutral"
+                  icon="i-lucide-columns-2"
+                  aria-label="Afficher en tableau"
+                  :aria-pressed="layout === 'board'"
+                  @click="layout = 'board'"
+                />
+              </div>
+            </div>
+          </div>
+          <div v-if="selectedList" class="selected-list-tools">
+            <span
+              >{{ selectedList.tasks.length }} tâche{{
+                selectedList.tasks.length > 1 ? "s" : ""
+              }}</span
+            ><UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-pencil"
+              @click="newList(selectedList)"
+              >Renommer</UButton
+            ><UButton
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              @click="
+                confirm = {
+                  kind: 'list',
+                  id: selectedList.id,
+                  title: 'Supprimer cette liste ?',
+                  detail: `${selectedList.name} et ses ${selectedList.tasks.length} tâches seront supprimées définitivement.`,
+                }
+              "
+              >Supprimer la liste</UButton
+            >
+          </div>
+          <div
+            v-if="w.loading.value && !w.loaded.value"
+            class="empty-state"
+            role="status"
+          >
+            Chargement de vos tâches…
+          </div>
+          <div v-else-if="!visible.length" class="empty-state">
+            <span
+              ><UIcon :name="search ? 'i-lucide-search' : 'i-lucide-sprout'"
+            /></span>
+            <h2>
+              {{
+                search
+                  ? "Aucune tâche trouvée"
+                  : view === "done"
+                    ? "Vos réussites auront leur place ici"
+                    : view === "overdue"
+                      ? "Tout est à jour"
+                      : view === "today"
+                        ? "La journée est ouverte"
+                        : "Votre prochaine action commence ici"
+              }}
+            </h2>
+            <p>
+              {{
+                search
+                  ? "Essayez un autre mot."
+                  : "Créez une tâche, ajoutez une échéance si nécessaire et avancez à votre rythme."
+              }}
+            </p>
+            <UButton v-if="!search" variant="soft" @click="newTask()"
+              >Ajouter une tâche</UButton
+            >
+          </div>
+          <div
+            v-else
+            class="task-sections"
+            :class="{ board: layout === 'board' }"
+          >
+            <section v-for="section in sections" :key="section.label">
+              <h2 v-if="section.label" class="column-heading">
+                {{ section.label }} <small>{{ section.tasks.length }}</small>
+              </h2>
+              <TaskRow
+                v-for="task in section.tasks"
+                :key="task.id"
+                :task="task"
+                :list-name="listLabel(task.listId)"
+                :busy="busy"
+                @edit="newTask(task)"
+                @complete="
+                  (value) =>
+                    action(
+                      () => w.completeTask(task.id, value, task.updatedAt),
+                      value ? 'Tâche terminée.' : 'Tâche rouverte.',
+                    )
+                "
+                @remove="
+                  confirm = {
+                    kind: 'task',
+                    id: task.id,
+                    title: 'Supprimer cette tâche ?',
+                    detail: task.shortDescription,
+                  }
+                "
+              />
+              <p v-if="!section.tasks.length" class="empty-column">
+                Aucune tâche dans cette colonne.
+              </p>
+            </section>
+          </div>
+        </section>
+        <p class="workspace-footnote">
+          Vos listes sont privées et enregistrées dans votre compte.
+        </p>
+      </div>
+    </main>
+    <TaskEditor
+      :open="taskOpen"
+      :task="editingTask"
+      :lists="w.lists.value"
+      :initial-list="selectedList?.id"
+      @close="taskOpen = false"
+      @saved="notice = 'Tâche enregistrée.'"
+    />
+    <UModal
+      v-model:open="listOpen"
+      :title="editingList ? 'Renommer la liste' : 'Nouvelle liste'"
+      description="Regroupez vos tâches par projet ou par envie."
+      ><template #body
+        ><form id="list-form" class="editor-form" @submit.prevent="saveList">
+          <label
+            >Nom de la liste<input
+              v-model="listName"
+              autofocus
+              required
+              minlength="2"
+              maxlength="100"
+              placeholder="Travail, maison, idées…"
+          /></label>
+          <p v-if="operationError" role="alert" class="form-error">
+            {{ operationError }}
+          </p>
+        </form></template
+      ><template #footer
+        ><div class="dialog-actions">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :disabled="busy"
+            @click="listOpen = false"
+            >Annuler</UButton
+          ><UButton type="submit" form="list-form" :loading="busy"
+            >Enregistrer la liste</UButton
+          >
+        </div></template
+      ></UModal
+    >
+    <UModal
+      v-model:open="profileOpen"
+      title="Mon compte"
+      description="Vos informations et la gestion de vos données."
+      ><template #body
+        ><form
+          id="profile-form"
+          class="editor-form"
+          @submit.prevent="saveProfile"
+        >
+          <div class="field-grid">
+            <label
+              >Prénom<input
+                v-model="profile.firstname"
+                required
+                maxlength="50" /></label
+            ><label
+              >Nom<input v-model="profile.lastname" required maxlength="50"
+            /></label>
+          </div>
+          <label
+            >Adresse e-mail<input
+              v-model="profile.email"
+              type="email"
+              required
+              maxlength="254" /></label
+          ><label
+            >Nouveau mot de passe<input
+              v-model="profile.password"
+              type="password"
+              minlength="8"
+              maxlength="72"
+              autocomplete="new-password"
+              placeholder="Laisser vide pour le conserver"
+          /></label>
+          <p class="field-help">
+            Au moins 8 caractères, une majuscule, une minuscule et un chiffre.
+          </p>
+          <p v-if="operationError" role="alert" class="form-error">
+            {{ operationError }}
+          </p>
+        </form>
+        <div class="danger-zone">
+          <h3>Supprimer mon compte</h3>
+          <p>Cette action efface votre compte, vos listes et vos tâches.</p>
+          <UButton
+            color="error"
+            variant="soft"
+            @click="
+              profileOpen = false;
+              confirm = {
+                kind: 'account',
+                id: w.user.value?.id ?? '',
+                title: 'Supprimer votre compte ?',
+                detail:
+                  'Toutes vos listes et tâches seront effacées définitivement.',
+              };
+            "
+            >Supprimer mon compte</UButton
+          >
+        </div></template
+      ><template #footer
+        ><div class="dialog-actions">
+          <UButton color="neutral" variant="ghost" @click="profileOpen = false"
+            >Annuler</UButton
+          ><UButton type="submit" form="profile-form" :loading="busy"
+            >Enregistrer le profil</UButton
+          >
+        </div></template
+      ></UModal
+    >
+    <UModal
+      :open="!!confirm"
+      :title="confirm?.title"
+      :description="confirm?.detail"
+      @update:open="
+        (value) => {
+          if (!value && !busy) confirm = undefined;
+        }
+      "
+      ><template #body
+        ><p>Cette suppression est définitive.</p>
+        <p v-if="operationError" role="alert" class="form-error">
+          {{ operationError }}
+        </p></template
+      ><template #footer
+        ><div class="dialog-actions">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :disabled="busy"
+            @click="confirm = undefined"
+            >Annuler</UButton
+          ><UButton color="error" :loading="busy" @click="removeConfirmed"
+            >Confirmer la suppression</UButton
+          >
+        </div></template
+      ></UModal
+    >
+  </div>
+</template>

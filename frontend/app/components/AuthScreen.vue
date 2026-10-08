@@ -1,0 +1,170 @@
+<script setup lang="ts">
+import { z } from "zod";
+const props = defineProps<{ register?: boolean }>();
+const workspace = useWorkspace();
+const api = useTaskApi();
+const fields = reactive({
+  firstname: "",
+  lastname: "",
+  email: "",
+  password: "",
+  confirm: "",
+});
+const busy = ref(false),
+  error = ref(""),
+  success = ref(""),
+  visible = ref(false);
+async function submit() {
+  if (busy.value) return;
+  busy.value = true;
+  error.value = "";
+  success.value = "";
+  try {
+    if (props.register) {
+      if (fields.password !== fields.confirm)
+        throw new Error("Les mots de passe ne correspondent pas.");
+      const response = await api.send("auth/register", z.unknown(), "POST", {
+        firstname: fields.firstname,
+        lastname: fields.lastname,
+        email: fields.email,
+        password: fields.password,
+      });
+      void response;
+      await navigateTo("/login?created=1");
+    } else
+      await workspace.login({ email: fields.email, password: fields.password });
+  } catch (cause) {
+    error.value = messageFrom(cause);
+  } finally {
+    busy.value = false;
+  }
+}
+onMounted(async () => {
+  if (useRoute().query.created === "1")
+    success.value = "Votre compte est créé. Vous pouvez vous connecter.";
+  try {
+    await workspace.load();
+    if (workspace.user.value) await navigateTo("/dashboard");
+  } catch (cause) {
+    error.value = messageFrom(cause);
+  }
+});
+</script>
+<template>
+  <div class="auth-page">
+    <NuxtLink class="product-brand" to="/"
+      ><span class="brand-symbol"><UIcon name="i-lucide-list-checks" /></span
+      >Mes listes de tâches</NuxtLink
+    >
+    <main class="auth-grid">
+      <section class="auth-panel">
+        <span class="kicker">{{
+          register ? "Mon agenda personnel" : "Mon agenda personnel"
+        }}</span>
+        <h2>{{ register ? "Créer votre compte" : "Se connecter" }}</h2>
+        <p>
+          {{
+            register
+              ? "Créez votre espace pour suivre vos listes et vos échéances."
+              : "Accédez à vos listes privées et reprenez vos tâches."
+          }}
+        </p>
+        <form @submit.prevent="submit">
+          <div v-if="register" class="form-columns">
+            <label for="firstname"
+              >Prénom<input
+                id="firstname"
+                v-model="fields.firstname"
+                name="firstname"
+                autocomplete="given-name"
+                minlength="2"
+                maxlength="50"
+                required
+                :disabled="busy" /></label
+            ><label for="lastname"
+              >Nom<input
+                id="lastname"
+                v-model="fields.lastname"
+                name="lastname"
+                autocomplete="family-name"
+                minlength="2"
+                maxlength="50"
+                required
+                :disabled="busy"
+            /></label>
+          </div>
+          <label for="email"
+            >Adresse e-mail<input
+              id="email"
+              v-model="fields.email"
+              type="email"
+              name="email"
+              autocomplete="email"
+              maxlength="100"
+              required
+              :disabled="busy"
+              placeholder="vous@exemple.fr"
+          /></label>
+          <label for="password"
+            >Mot de passe<span class="password-field"
+              ><input
+                id="password"
+                aria-label="Mot de passe"
+                v-model="fields.password"
+                :type="visible ? 'text' : 'password'"
+                :autocomplete="register ? 'new-password' : 'current-password'"
+                :minlength="register ? 8 : undefined"
+                maxlength="72"
+                required
+                :disabled="busy"
+              /><button
+                type="button"
+                :aria-label="
+                  visible
+                    ? 'Masquer le mot de passe'
+                    : 'Afficher le mot de passe'
+                "
+                @click="visible = !visible"
+              >
+                {{ visible ? "Masquer" : "Voir" }}
+              </button></span
+            ></label
+          >
+          <p v-if="register" class="field-hint">
+            Au moins 8 caractères, une majuscule, une minuscule et un chiffre.
+          </p>
+          <label v-if="register" for="confirm"
+            >Confirmer le mot de passe<input
+              id="confirm"
+              v-model="fields.confirm"
+              type="password"
+              autocomplete="new-password"
+              maxlength="72"
+              required
+              :disabled="busy"
+          /></label>
+          <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+          <p v-if="success" class="form-success" role="status">{{ success }}</p>
+          <UButton
+            class="auth-submit"
+            type="submit"
+            color="primary"
+            size="lg"
+            :loading="busy"
+            trailing-icon="i-lucide-arrow-right"
+            >{{ register ? "Créer mon compte" : "Se connecter" }}</UButton
+          >
+        </form>
+        <div class="auth-switch">
+          <span>{{ register ? "Déjà un compte ?" : "Première visite ?" }}</span
+          ><NuxtLink :to="register ? '/login' : '/register'">{{
+            register ? "Se connecter" : "Créer un compte"
+          }}</NuxtLink>
+        </div>
+      </section>
+    </main>
+    <footer class="auth-footer">
+      Vos listes sont privées. Vos données restent dans votre compte.
+    </footer>
+  </div>
+</template>

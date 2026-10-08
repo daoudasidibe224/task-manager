@@ -1,47 +1,43 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
-import { UserService } from '../../user/user.service';
-import { JwtPayload } from '../types/auth';
-
-// Interface pour extraire les cookies
-interface RequestWithCookies {
-  cookies?: {
-    accessToken?: string;
-  };
-  headers?: {
-    authorization?: string;
-  };
-}
-
+import type { Request } from 'express';
+import { jwtPayloadSchema } from '../types/auth.js';
+import { PrismaService } from '../../prisma.service.js';
+import { UserResponseDto } from '../../user/dto/user-response.dto.js';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,
-    private userService: UserService,
+    config: ConfigService,
+    private prisma: PrismaService,
   ) {
     super({
-      // cookies en priorité, puis Authorization header
-      jwtFromRequest: (req: RequestWithCookies) => {
-        if (req.cookies?.accessToken) {
-          return req.cookies.accessToken;
-        }
-
-        const authHeader = req.headers?.authorization;
-        if (authHeader?.startsWith('Bearer ')) {
-          return authHeader.substring(7);
-        }
-
-        return null;
+      jwtFromRequest: (req: Request) => {
+        const token: unknown = req.cookies?.accessToken;
+        return typeof token === 'string'
+          ? token
+          : req.headers.authorization?.startsWith('Bearer ')
+            ? req.headers.authorization.slice(7)
+            : null;
       },
       ignoreExpiration: false,
-      secretOrKey:
-        configService.get<string>('auth.jwtSecret') || 'fallback-secret',
+      algorithms: ['HS256'],
+      secretOrKey: config.getOrThrow<string>('auth.jwtSecret'),
     });
   }
-
-  async validate(payload: JwtPayload) {
-    return this.userService.findOne(payload.sub);
+  async validate(value: unknown) {
+    const result = jwtPayloadSchema.safeParse(value);
+    if (!result.success) throw new UnauthorizedException('Session invalide.');
+    const session = await this.prisma.session.findFirst({
+      where: {
+        id: result.data.sid,
+        userId: result.data.sub,
+        expiresAt: { gt: new Date() },
+      },
+      include: { user: true },
+    });
+    if (!session) throw new UnauthorizedException('Session expirée.');
+    return { ...new UserResponseDto(session.user), sessionId: session.id };
   }
 }

@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: task_manager
+      POSTGRES_PASSWORD: ${TASK_DB_PASSWORD:-local-development-only}
+      POSTGRES_DB: task_manager
+    ports:
+      - "127.0.0.1:${TASK_DB_PORT:-55412}:5432"
+    volumes:
+      - task_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U task_manager -d task_manager"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+volumes:
+  task_data:

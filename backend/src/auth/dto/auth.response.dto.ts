@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserResponseDto } from '../../user/dto/user-response.dto';
+import { UserResponseDto } from '../../user/dto/user-response.dto.js';
 
 export class AuthResponseDto {
   @ApiProperty({
     description: "Token d'accès JWT",
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
-  accessToken: string;
+  accessToken!: string;
 
   @ApiProperty({
     description: "Informations de l'utilisateur connecté",
@@ -18,13 +18,13 @@ export class AuthResponseDto {
     description: 'Indique si la connexion est réussie',
     example: true,
   })
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty({
     description: 'Message de statut',
     example: 'Connexion réussie',
   })
-  message: string;
+  message!: string;
 
   constructor(
     accessToken: string,
@@ -43,8 +43,8 @@ export class AuthResponseDto {
  * @internal
  */
 export class InternalAuthResponseDto {
-  accessToken: string;
-  refreshToken: string;
+  accessToken!: string;
+  refreshToken!: string;
   user: UserResponseDto;
 
   constructor(

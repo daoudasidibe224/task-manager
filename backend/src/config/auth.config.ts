@@ -1,9 +1,16 @@
 import { registerAs } from '@nestjs/config';
-
-export default registerAs('auth', () => ({
-  jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key',
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
-  refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || 'your-refresh-secret',
-  refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
-  bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12'),
-}));
+export default registerAs('auth', () => {
+  const jwtSecret = process.env.JWT_SECRET,
+    refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
+  if (
+    !jwtSecret ||
+    jwtSecret.length < 32 ||
+    !refreshTokenSecret ||
+    refreshTokenSecret.length < 32 ||
+    jwtSecret === refreshTokenSecret
+  )
+    throw new Error(
+      'JWT_SECRET et REFRESH_TOKEN_SECRET doivent être distincts et contenir au moins 32 caractères.',
+    );
+  return { jwtSecret, refreshTokenSecret, bcryptRounds: 12 };
+});

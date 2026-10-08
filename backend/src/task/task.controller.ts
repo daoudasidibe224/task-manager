@@ -1,3 +1,4 @@
+import { TaskQueryDto } from './dto/task-query.dto.js';
 import {
   Controller,
   Get,
@@ -19,14 +20,14 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { TaskService } from './task.service';
-import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
-import { TaskResponseDto } from './dto/task-response.dto';
-import { ApiResponseDto } from '../common/dto/api-response.dto';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AuthenticatedUser } from '../auth/types/auth';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TaskService } from './task.service.js';
+import { CreateTaskDto } from './dto/create-task.dto.js';
+import { UpdateTaskDto } from './dto/update-task.dto.js';
+import { TaskResponseDto } from './dto/task-response.dto.js';
+import { ApiResponseDto } from '../common/dto/api-response.dto.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../auth/types/auth.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -76,14 +77,17 @@ export class TaskController {
   })
   async findAll(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('listId') listId?: string,
-    @Query('completed') completed?: string,
+    @Query() query: TaskQueryDto,
   ) {
     const isCompleted =
-      completed === 'true' ? true : completed === 'false' ? false : undefined;
+      query.completed === 'true'
+        ? true
+        : query.completed === 'false'
+          ? false
+          : undefined;
 
     const tasks = await this.taskService.findAllByUser(user.id, {
-      listId,
+      listId: query.listId,
       completed: isCompleted,
     });
     return ApiResponseDto.success('Tâches récupérées avec succès', tasks);

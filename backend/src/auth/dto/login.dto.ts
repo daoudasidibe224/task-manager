@@ -1,6 +1,6 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { ToLowerCaseAndTrim } from '../../common/decorators/lowercase-trim.decorator';
+import { ToLowerCaseAndTrim } from '../../common/decorators/lowercase-trim.decorator.js';
 
 export class LoginDto {
   @ApiProperty({
@@ -9,7 +9,7 @@ export class LoginDto {
   })
   @IsEmail({}, { message: "Format d'email invalide" })
   @ToLowerCaseAndTrim()
-  email: string;
+  email!: string;
 
   @ApiProperty({
     description: "Mot de passe de l'utilisateur",
@@ -20,5 +20,5 @@ export class LoginDto {
   @MinLength(8, {
     message: 'Le mot de passe doit contenir au moins 8 caractères',
   })
-  password: string;
+  password!: string;
 }

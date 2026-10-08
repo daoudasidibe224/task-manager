@@ -17,14 +17,14 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { TaskListService } from './task-list.service';
-import { CreateTaskListDto } from './dto/create-task-list.dto';
-import { UpdateTaskListDto } from './dto/update-task-list.dto';
-import { TaskListResponseDto } from './dto/task-list-response.dto';
-import { ApiResponseDto } from '../common/dto/api-response.dto';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AuthenticatedUser } from '../auth/types/auth';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TaskListService } from './task-list.service.js';
+import { CreateTaskListDto } from './dto/create-task-list.dto.js';
+import { UpdateTaskListDto } from './dto/update-task-list.dto.js';
+import { TaskListResponseDto } from './dto/task-list-response.dto.js';
+import { ApiResponseDto } from '../common/dto/api-response.dto.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../auth/types/auth.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @ApiTags('Task Lists')
 @ApiBearerAuth()
@@ -50,8 +50,10 @@ export class TaskListController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     // Forcer l'userId à être celui de l'utilisateur connecté
-    createTaskListDto.userId = user.id;
-    const taskList = await this.taskListService.create(createTaskListDto);
+    const taskList = await this.taskListService.create(
+      createTaskListDto,
+      user.id,
+    );
     return ApiResponseDto.success(
       'Liste de tâches créée avec succès',
       taskList,

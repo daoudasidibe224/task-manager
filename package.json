@@ -1,0 +1,46 @@
+{
+  "name": "task-manager",
+  "version": "2.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w frontend",
+    "api": "npm run start:dev -w backend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run build -w backend && tsc --noEmit -p tsconfig.tests.json && npm run typecheck -w frontend",
+    "lint": "eslint .",
+    "test": "npm run build -w backend && node --test tests/api.test.ts",
+    "e2e": "node tests/e2e.ts",
+    "db:generate": "npm run db:generate -w backend",
+    "db:migrate": "npm run db:migrate -w backend",
+    "configure": "node scripts/configure.ts",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.4",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "prettier": "^3.9.9",
+    "supertest": "^7.3.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vue-eslint-parser": "^10.4.1"
+  },
+  "overrides": {
+    "simple-git": "4.0.2",
+    "@simple-git/argv-parser": "2.0.1",
+    "mysql2": "3.24.5",
+    "deepmerge-ts": "8.0.2",
+    "esbuild": "0.28.2"
+  },
+  "type": "module"
+}

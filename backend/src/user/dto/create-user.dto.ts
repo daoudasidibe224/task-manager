@@ -5,10 +5,11 @@ import {
   MinLength,
   MaxLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsStrongPassword } from '../../common/validators/custom-validators';
-import { VALIDATION_MESSAGES } from '../../common/constants/validation-messages';
-import { ToLowerCaseAndTrim } from '../../common/decorators/lowercase-trim.decorator';
+import { IsStrongPassword } from '../../common/validators/custom-validators.js';
+import { VALIDATION_MESSAGES } from '../../common/constants/validation-messages.js';
+import { ToLowerCaseAndTrim } from '../../common/decorators/lowercase-trim.decorator.js';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -21,8 +22,10 @@ export class CreateUserDto {
   @IsString({ message: VALIDATION_MESSAGES.FIRSTNAME.STRING })
   @MinLength(2, { message: VALIDATION_MESSAGES.FIRSTNAME.MIN_LENGTH })
   @MaxLength(50, { message: VALIDATION_MESSAGES.FIRSTNAME.MAX_LENGTH })
-  @ToLowerCaseAndTrim()
-  firstname: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  firstname!: string;
 
   @ApiProperty({
     description: "Nom de famille de l'utilisateur",
@@ -34,8 +37,10 @@ export class CreateUserDto {
   @IsString({ message: VALIDATION_MESSAGES.LASTNAME.STRING })
   @MinLength(2, { message: VALIDATION_MESSAGES.LASTNAME.MIN_LENGTH })
   @MaxLength(50, { message: VALIDATION_MESSAGES.LASTNAME.MAX_LENGTH })
-  @ToLowerCaseAndTrim()
-  lastname: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  lastname!: string;
 
   @ApiProperty({
     description: "Adresse email de l'utilisateur",
@@ -47,7 +52,7 @@ export class CreateUserDto {
   @IsEmail({}, { message: VALIDATION_MESSAGES.EMAIL.VALID })
   @MaxLength(100, { message: VALIDATION_MESSAGES.EMAIL.MAX_LENGTH })
   @ToLowerCaseAndTrim()
-  email: string;
+  email!: string;
 
   @ApiProperty({
     description:
@@ -58,6 +63,7 @@ export class CreateUserDto {
   })
   @IsNotEmpty({ message: VALIDATION_MESSAGES.PASSWORD.REQUIRED })
   @IsString({ message: VALIDATION_MESSAGES.PASSWORD.STRING })
+  @MaxLength(72)
   @IsStrongPassword()
-  password: string;
+  password!: string;
 }

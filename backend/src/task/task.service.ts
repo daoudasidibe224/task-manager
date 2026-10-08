@@ -1,13 +1,15 @@
+import { Prisma } from '../generated/prisma/client.js';
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
-import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
-import { TaskResponseDto } from './dto/task-response.dto';
-import { PrismaService } from '../prisma.service';
-import { VALIDATION_MESSAGES } from '../common/constants/validation-messages';
+import { CreateTaskDto } from './dto/create-task.dto.js';
+import { UpdateTaskDto } from './dto/update-task.dto.js';
+import { TaskResponseDto } from './dto/task-response.dto.js';
+import { PrismaService } from '../prisma.service.js';
+import { VALIDATION_MESSAGES } from '../common/constants/validation-messages.js';
 
 interface TaskFilter {
   listId?: string;
@@ -46,7 +48,7 @@ export class TaskService {
         },
       },
     });
-    return task as TaskResponseDto;
+    return task;
   }
 
   async findAllByUser(
@@ -79,7 +81,7 @@ export class TaskService {
       },
     });
 
-    return tasks as TaskResponseDto[];
+    return tasks;
   }
 
   async findOneByUser(id: string, userId: string): Promise<TaskResponseDto> {
@@ -99,9 +101,8 @@ export class TaskService {
     }
 
     // Ne pas retourner les informations de la liste
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { list, ...taskWithoutList } = task;
-    return taskWithoutList as TaskResponseDto;
+    const { list: _list, ...taskWithoutList } = task;
+    return taskWithoutList;
   }
 
   async updateByUser(
@@ -142,12 +143,28 @@ export class TaskService {
       }
     }
 
-    const updatedTask = await this.prisma.task.update({
-      where: { id },
-      data: updateTaskDto,
-    });
-
-    return updatedTask as TaskResponseDto;
+    const { expectedUpdatedAt, ...data } = updateTaskDto;
+    try {
+      return await this.prisma.task.update({
+        where: {
+          id,
+          ...(expectedUpdatedAt
+            ? { updatedAt: new Date(expectedUpdatedAt) }
+            : {}),
+        },
+        data,
+      });
+    } catch (error) {
+      if (
+        expectedUpdatedAt &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      )
+        throw new ConflictException(
+          'Cette tâche a changé dans un autre onglet. Actualisez vos données avant de la modifier.',
+        );
+      throw error;
+    }
   }
 
   async removeByUser(id: string, userId: string): Promise<void> {

@@ -1,12 +1,12 @@
 import {
   createParamDecorator,
   ExecutionContext,
-  BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 
 interface RequestWithCookies {
   cookies?: {
-    refreshToken?: string;
+    refreshToken?: unknown;
   };
 }
 
@@ -15,8 +15,10 @@ export const RefreshToken = createParamDecorator(
     const request = ctx.switchToHttp().getRequest<RequestWithCookies>();
     const refreshToken = request.cookies?.refreshToken;
 
-    if (!refreshToken) {
-      throw new BadRequestException('Token de rafraîchissement manquant');
+    if (typeof refreshToken !== 'string' || !refreshToken) {
+      throw new UnauthorizedException(
+        'Connectez-vous pour accéder à votre compte.',
+      );
     }
 
     return refreshToken;

@@ -4,102 +4,53 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { ApiResponseDto } from '../../common/dto/api-response.dto';
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface AuthResponse {
-  tokens?: AuthTokens;
-  clearCookies?: boolean;
-  [key: string]: any;
-}
-
-// Interface pour les cookies compatible avec différentes plateformes HTTP
-interface CookieOptions {
-  httpOnly?: boolean;
-  secure?: boolean;
-  sameSite?: 'strict' | 'lax' | 'none';
-  maxAge?: number;
-  path?: string;
-}
-
-interface PlatformResponse {
-  cookie(name: string, value: string, options?: CookieOptions): void;
-  clearCookie(
-    name: string,
-    options?: Pick<CookieOptions, 'httpOnly' | 'path'>,
-  ): void;
-}
-
-type Payload = {
-  tokens?: AuthTokens;
-  clearCookies?: boolean;
-  [key: string]: unknown;
-};
-
+import type { Response, CookieOptions } from 'express';
+import { Observable, map } from 'rxjs';
+import { z } from 'zod';
+const envelope = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  timestamp: z.date(),
+  data: z.object({
+    user: z.unknown().optional(),
+    tokens: z
+      .object({ accessToken: z.string(), refreshToken: z.string() })
+      .optional(),
+    clearCookies: z.boolean().optional(),
+  }),
+});
 @Injectable()
 export class AuthCookieInterceptor implements NestInterceptor {
-  constructor(private configService: ConfigService) {}
-
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler<unknown>,
+  ): Observable<unknown> {
     return next.handle().pipe(
-      map((data: ApiResponseDto<Payload>) => {
-        const response = context.switchToHttp().getResponse<PlatformResponse>();
-
-        if (!data?.data) {
-          return data;
+      map((value: unknown) => {
+        const result = envelope.parse(value);
+        const response = context.switchToHttp().getResponse<Response>();
+        const options: CookieOptions = {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+        };
+        if (result.data.tokens) {
+          response.cookie('accessToken', result.data.tokens.accessToken, {
+            ...options,
+            maxAge: 900000,
+          });
+          response.cookie('refreshToken', result.data.tokens.refreshToken, {
+            ...options,
+            maxAge: 604800000,
+          });
         }
-
-        const { tokens, clearCookies, ...restPayload } = data.data;
-
-        if (tokens) {
-          this.setAuthCookies(response, tokens);
+        if (result.data.clearCookies) {
+          response.clearCookie('accessToken', options);
+          response.clearCookie('refreshToken', options);
         }
-
-        if (clearCookies) {
-          this.clearAuthCookies(response);
-        }
-
-        return { ...data, data: restPayload };
+        return { ...result, data: { user: result.data.user } };
       }),
     );
-  }
-
-  private setAuthCookies(response: PlatformResponse, tokens: AuthTokens): void {
-    const isProduction = process.env.NODE_ENV === 'production';
-
-    const cookieOptions: CookieOptions = {
-      httpOnly: true, // Protection XSS
-      secure: isProduction, // HTTPS en production
-      sameSite: isProduction ? 'strict' : 'lax',
-      path: '/',
-    };
-
-    response.cookie('accessToken', tokens.accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    });
-
-    // Cookie pour le refresh token (7 jours)
-    response.cookie('refreshToken', tokens.refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
-    });
-  }
-
-  private clearAuthCookies(response: PlatformResponse): void {
-    const clearOptions = {
-      httpOnly: true,
-      path: '/',
-    };
-
-    response.clearCookie('accessToken', clearOptions);
-    response.clearCookie('refreshToken', clearOptions);
   }
 }

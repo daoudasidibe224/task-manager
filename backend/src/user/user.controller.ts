@@ -16,13 +16,13 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { UserService } from './user.service';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserResponseDto } from './dto/user-response.dto';
-import { ApiResponseDto } from '../common/dto/api-response.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AuthenticatedUser } from '../auth/types/auth';
+import { UserService } from './user.service.js';
+import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UserResponseDto } from './dto/user-response.dto.js';
+import { ApiResponseDto } from '../common/dto/api-response.dto.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../auth/types/auth.js';
 
 @ApiTags('User')
 @ApiBearerAuth()

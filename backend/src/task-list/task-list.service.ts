@@ -1,14 +1,15 @@
+import { Prisma } from '../generated/prisma/client.js';
 import {
   Injectable,
   NotFoundException,
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
-import { CreateTaskListDto } from './dto/create-task-list.dto';
-import { UpdateTaskListDto } from './dto/update-task-list.dto';
-import { PrismaService } from '../prisma.service';
-import { TaskListResponseDto } from './dto/task-list-response.dto';
-import { VALIDATION_MESSAGES } from '../common/constants/validation-messages';
+import { CreateTaskListDto } from './dto/create-task-list.dto.js';
+import { UpdateTaskListDto } from './dto/update-task-list.dto.js';
+import { PrismaService } from '../prisma.service.js';
+import { TaskListResponseDto } from './dto/task-list-response.dto.js';
+import { VALIDATION_MESSAGES } from '../common/constants/validation-messages.js';
 
 @Injectable()
 export class TaskListService {
@@ -16,17 +17,13 @@ export class TaskListService {
 
   async create(
     createTaskListDto: CreateTaskListDto,
+    userId: string,
   ): Promise<TaskListResponseDto> {
-    // S'assurer que userId est défini
-    if (!createTaskListDto.userId) {
-      throw new Error('User ID is required');
-    }
-
     // Vérifier si une liste avec ce nom existe déjà pour cet utilisateur
     const existingTaskList = await this.prisma.taskList.findFirst({
       where: {
         name: createTaskListDto.name,
-        userId: createTaskListDto.userId,
+        userId: userId,
       },
     });
 
@@ -39,13 +36,13 @@ export class TaskListService {
     const taskList = await this.prisma.taskList.create({
       data: {
         name: createTaskListDto.name,
-        userId: createTaskListDto.userId,
+        userId: userId,
       },
       include: {
         tasks: true,
       },
     });
-    return taskList as TaskListResponseDto;
+    return taskList;
   }
 
   async findAllByUser(userId: string): Promise<TaskListResponseDto[]> {
@@ -59,7 +56,7 @@ export class TaskListService {
       },
     });
 
-    return taskLists as TaskListResponseDto[];
+    return taskLists;
   }
 
   async findOneByUser(
@@ -85,7 +82,7 @@ export class TaskListService {
       );
     }
 
-    return taskList as TaskListResponseDto;
+    return taskList;
   }
 
   async updateByUser(
@@ -130,15 +127,29 @@ export class TaskListService {
       }
     }
 
-    const updatedTaskList = await this.prisma.taskList.update({
-      where: { id },
-      data: updateTaskListDto,
-      include: {
-        tasks: true,
-      },
-    });
-
-    return updatedTaskList as TaskListResponseDto;
+    const { expectedUpdatedAt, ...data } = updateTaskListDto;
+    try {
+      return await this.prisma.taskList.update({
+        where: {
+          id,
+          ...(expectedUpdatedAt
+            ? { updatedAt: new Date(expectedUpdatedAt) }
+            : {}),
+        },
+        data,
+        include: { tasks: true },
+      });
+    } catch (error) {
+      if (
+        expectedUpdatedAt &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      )
+        throw new ConflictException(
+          'Cette liste a changé dans un autre onglet. Actualisez vos données avant de la modifier.',
+        );
+      throw error;
+    }
   }
 
   async removeByUser(id: string, userId: string): Promise<void> {

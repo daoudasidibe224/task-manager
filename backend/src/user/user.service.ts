@@ -2,15 +2,14 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { PrismaService } from '../prisma.service.js';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserResponseDto } from './dto/user-response.dto';
-import { VALIDATION_MESSAGES } from '../common/constants/validation-messages';
-import { Prisma } from '../../generated/prisma';
+import { CreateUserDto } from './dto/create-user.dto.js';
+import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UserResponseDto } from './dto/user-response.dto.js';
+import { VALIDATION_MESSAGES } from '../common/constants/validation-messages.js';
+import { Prisma } from '../generated/prisma/client.js';
 import { ConfigService } from '@nestjs/config';
 
 type UserWithPassword = Prisma.UserGetPayload<{ include: { taskLists: true } }>;
@@ -64,28 +63,10 @@ export class UserService {
       this.bcryptRounds,
     );
 
-    try {
-      const user = await this.prisma.user.create({
-        data: {
-          ...createUserDto,
-          password: hashedPassword,
-        },
-        select: {
-          id: true,
-          firstname: true,
-          lastname: true,
-          email: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-
-      return user;
-    } catch {
-      throw new InternalServerErrorException(
-        "Erreur lors de la création de l'utilisateur",
-      );
-    }
+    const user = await this.prisma.user.create({
+      data: { ...createUserDto, password: hashedPassword },
+    });
+    return new UserResponseDto(user);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
@@ -111,7 +92,8 @@ export class UserService {
       }
     }
 
-    const updateData: Partial<CreateUserDto> = { ...updateUserDto };
+    const { expectedUpdatedAt, ...values } = updateUserDto;
+    const updateData: Partial<CreateUserDto> = { ...values };
 
     // Si le mot de passe est modifié, le hasher
     if (updateUserDto.password) {
@@ -123,23 +105,25 @@ export class UserService {
 
     try {
       const user = await this.prisma.user.update({
-        where: { id },
-        data: updateData,
-        select: {
-          id: true,
-          firstname: true,
-          lastname: true,
-          email: true,
-          createdAt: true,
-          updatedAt: true,
+        where: {
+          id,
+          ...(expectedUpdatedAt
+            ? { updatedAt: new Date(expectedUpdatedAt) }
+            : {}),
         },
+        data: updateData,
       });
-
-      return user;
-    } catch {
-      throw new InternalServerErrorException(
-        VALIDATION_MESSAGES.ERRORS.USER.UPDATE_FAILED,
-      );
+      return new UserResponseDto(user);
+    } catch (error) {
+      if (
+        expectedUpdatedAt &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      )
+        throw new ConflictException(
+          'Votre profil a changé dans un autre onglet. Actualisez vos données avant de le modifier.',
+        );
+      throw error;
     }
   }
 
@@ -153,43 +137,6 @@ export class UserService {
       throw new NotFoundException(VALIDATION_MESSAGES.ERRORS.USER.NOT_FOUND);
     }
 
-    try {
-      await this.prisma.user.delete({
-        where: { id },
-      });
-
-      return { message: 'Utilisateur supprimé avec succès' };
-    } catch {
-      throw new InternalServerErrorException(
-        "Erreur lors de la suppression de l'utilisateur",
-      );
-    }
-  }
-
-  /**
-   * Invalide le refresh token d'un utilisateur (pour le logout)
-   */
-  async invalidateRefreshToken(userId: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { refreshToken: null },
-    });
-  }
-
-  /**
-   * Met à jour le refresh token d'un utilisateur
-   */
-  async updateRefreshToken(
-    userId: string,
-    refreshToken: string | null,
-  ): Promise<void> {
-    const hashedToken = refreshToken
-      ? await bcrypt.hash(refreshToken, this.bcryptRounds)
-      : null;
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { refreshToken: hashedToken },
-    });
+    await this.prisma.user.delete({ where: { id } });
   }
 }
