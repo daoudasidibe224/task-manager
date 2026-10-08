@@ -2,7 +2,7 @@
 
 Un agenda privé pour organiser ses tâches par liste, choisir une priorité et garder les échéances visibles. L’application propose une vue d’ensemble, les tâches du jour, les retards et les tâches terminées. L’affichage en tableau sépare les actions à faire des actions terminées.
 
-La semaine en haut de l’agenda permet d’ouvrir les échéances d’une date, parcourir les semaines et revenir à aujourd’hui. Changer de semaine quitte le filtre d’une date pour revenir à la vue d’ensemble. Créer une tâche depuis une journée préremplit sa date. Une tâche peut contenir jusqu’à 20 étapes, cochables depuis sa ligne ou son formulaire. Copier une tâche ouvre une version modifiable avec ses notes, sa priorité et son échéance ; les étapes sont remises à faire. La copie n’est créée qu’après confirmation.
+La semaine, à droite de la feuille sur grand écran et au-dessus des tâches sur mobile, permet d’ouvrir les échéances d’une date, parcourir les semaines et revenir à aujourd’hui. Changer de semaine quitte le filtre d’une date pour revenir à la vue d’ensemble. Créer une tâche depuis une journée préremplit sa date. Une tâche peut contenir jusqu’à 20 étapes, cochables depuis sa ligne ou son formulaire. Copier une tâche ouvre une version modifiable avec ses notes, sa priorité et son échéance ; les étapes sont remises à faire. La copie n’est créée qu’après confirmation.
 
 L’inscription demande une adresse e-mail et un mot de passe. Le prénom est facultatif, dans une section repliée ; à défaut, la partie précédant l’arobase sert de nom personnel et reste modifiable dans le profil. Le compte est connecté après sa création. Le bouton Voir permet de vérifier le mot de passe sans le saisir une deuxième fois.
 
@@ -14,6 +14,7 @@ Prérequis : **Node.js 24.15 ou plus récent**, npm et PostgreSQL 15 ou plus ré
 
 ```sh
 npm ci
+npm run patch:devtools
 npm run configure
 docker compose up -d
 npm run db:generate
@@ -32,7 +33,7 @@ npm run api
 npm run dev
 ```
 
-Ouvrir **http://127.0.0.1:4312** et créer un compte. L’API écoute sur **http://127.0.0.1:8012/api**, sa documentation sur `/api/docs`. La base Docker utilise le port local **55412** et le volume `task_data`. Le mot de passe du conteneur est réservé au développement local. Avec un PostgreSQL déjà installé, adapter `DATABASE_URL` et créer une base vide avant la migration.
+Ouvrir **http://127.0.0.1:4312** et créer un compte. L’API écoute sur **http://127.0.0.1:8012/api**, sa documentation de développement sur `/api/docs`. La base Docker utilise le port local **55412** et le volume `task_data`. Le mot de passe du conteneur est réservé au développement local. Avec un PostgreSQL déjà installé, adapter `DATABASE_URL` et créer une base vide avant la migration.
 
 Le schéma initial remplace l’ancienne structure du projet. Ces migrations concernent une **nouvelle base dédiée** ; elles ne migrent pas les anciennes données. Arrêter Docker avec `docker compose stop` conserve les données. `docker compose down -v` efface le volume local.
 
@@ -90,6 +91,31 @@ Les avis officiels indiquent l’absence de version corrigée. Le registre npm d
 
 L’audit complet et `npm audit --omit=dev` restent tous deux à **11 hautes / 0 critiques** : Nuxt déclare cet outillage dans son arbre de dépendances. En revanche, `npm audit --omit=dev --workspace=backend` donne **0 avis** pour l’API NestJS. Le manifeste de l’artefact Nuxt compilé ne contient ni braces ni node-forge. Cette séparation et les usages décrits limitent les chemins exposés ; elles ne résolvent pas les deux avis dans l’installation du dépôt.
 
-Les `overrides` vers simple-git 4.0.2, @simple-git/argv-parser 2.0.1, mysql2 3.24.5, deepmerge-ts 8.0.2 et esbuild 0.28.2 corrigent les autres avis connus. Leur compatibilité a été vérifiée par une installation neuve, génération Prisma, migrations, types, compilations et parcours complets. La CI bloque les avis critiques, tout en affichant la limite haute restante ; **l’audit ne doit pas être présenté comme vierge**.
+DevTools stable 3.4.2 utilise encore l’import par défaut de simple-git 3, supprimé par la [migration officielle v4](https://github.com/steveukx/git-js/blob/main/docs/RELEASE-NOTES-V4.md). `scripts/patch-devtools.ts` adapte uniquement cet import vers `simpleGit`, selon ce guide. `npm run patch:devtools` est appelé explicitement après `npm ci` (également par le postinstall client lorsque npm autorise ce cycle). Il vérifie les versions verrouillées, l’empreinte SHA256 du fichier original et celle du fichier déjà adapté ; tout changement inattendu interrompt l’installation. `npm run test:compat` charge réellement le module et teste les lectures de branche, révision et état employées par DevTools, ainsi que le refus d’un fichier altéré. simple-git 4.0.2 dépend lui-même d’argv-parser 2.0.1 : ce dernier n’a pas d’override distinct. Ce correctif maintenu dans le dépôt accompagne l’override simple-git ; il ne suffit pas de forcer une version hors plage. Les autres overrides retenus sont mysql2 3.24.5, deepmerge-ts 8.0.2 et esbuild 0.28.2. L’installation neuve, Prisma, migrations, types, compilations et parcours complets vérifient leur usage. La CI bloque les avis critiques, tout en affichant la limite haute restante ; **l’audit ne doit pas être présenté comme vierge**.
 
 Les migrations suivent les guides [Nuxt 4](https://nuxt.com/docs/4.x/getting-started/upgrade), [Nuxt UI](https://ui.nuxt.com/docs/getting-started/installation/nuxt), [NestJS 12](https://docs.nestjs.com/migration-guide) et [Prisma 7](https://www.prisma.io/docs/orm/more/upgrade-guides/upgrading-versions/upgrading-to-prisma-7). Prisma 8 était une préversion au moment de la migration et n’a pas été retenu.
+
+## Conteneur de production
+
+Le Dockerfile à la racine compile NestJS et génère le client Nuxt statique. L’image finale exécute seulement l’API compilée et les dépendances de production du workspace backend, sous un utilisateur sans privilèges. Elle sert aussi les routes du navigateur, les fichiers et les icônes locaux. L’API et le frontend partagent l’origine HTTPS ; `NUXT_PUBLIC_API_BASE_URL=/api` est intégré lors de la génération. Les scripts inline de démarrage Nuxt sont autorisés par leur empreinte SHA256 dans la politique CSP, sans autorisation générale des scripts inline.
+
+```bash
+docker build --target build -t mes-listes-de-taches-migrations .
+docker run --rm --env-file .env.production mes-listes-de-taches-migrations npm run db:migrate
+docker build -t mes-listes-de-taches .
+docker run --rm -p 8012:8012 --env-file .env.production mes-listes-de-taches
+```
+
+Le fichier `.env.production`, privé et hors Git, fournit `DATABASE_URL` vers PostgreSQL durable, `JWT_SECRET` et `REFRESH_TOKEN_SECRET` distincts/aléatoires, `FRONTEND_URL=https://votre-domaine` sans chemin ni slash final et `NODE_ENV=production`. Les migrations doivent réussir avant le démarrage de la nouvelle version ; les deux migrations du dépôt sont additives dans la base dédiée, sans importer l’ancien service. Sauvegarder PostgreSQL séparément de l’image. `HOST=0.0.0.0`, `PORT=8012` et le dossier frontend sont déjà définis dans l’image. Le port peut être imposé par l’hébergeur. `TRUST_PROXY` vaut 0 par défaut ; 1 convient uniquement à un proxy maîtrisé qui réécrit les en-têtes entrants.
+
+`GET /api/health` contrôle la vie du processus ; `GET /api/ready` exécute une requête PostgreSQL et retourne 503 si la base est indisponible. Le conteneur utilise cette route pour son healthcheck. La configuration refuse une origine HTTP en production et les cookies sont Secure/HttpOnly/SameSite=Lax. Une API et un client sur des sites distincts ne sont pas la configuration proposée.
+
+La documentation Swagger est disponible en développement et désactivée dans l’image publique. Les icônes utilisées, y compris celles choisies dynamiquement, sont intégrées au client ; aucune requête vers Iconify n’est nécessaire.
+
+Le conteneur ne représente pas un déploiement public déjà effectué. Restent à configurer l’hébergeur gratuit, PostgreSQL durable et ses sauvegardes/quotas, les secrets, les migrations et l’URL HTTPS. Les limites et pauses éventuelles d’un service gratuit ne sont pas une garantie de disponibilité permanente.
+
+## Livraison gratuite proposée
+
+La proposition `render.yaml` utilise un service Docker Free et PostgreSQL durable Neon Free externe. Aucun service ni projet Neon n’a encore été créé. Fournir une connexion dédiée avec TLS dans `DATABASE_URL`, appliquer les migrations depuis l’image cible `build` avant le lancement, puis renseigner les secrets `sync:false` et l’origine HTTPS exacte. Aucun PostgreSQL Render gratuit n’est prévu : il expire après 30 jours. Au 8 octobre 2026, Neon annonce [1 Go par projet Free](https://neon.com/blog/neon-free-plan-1-gb-per-project), 100 CU-heures mensuelles, avec mise en veille. Vérifier les quotas du compte réellement créé et conserver des exports PostgreSQL séparés ; la courte restauration instantanée n’est pas une sauvegarde à long terme.
+
+Render partage [750 heures gratuites par mois entre les services du workspace](https://render.com/docs/free), met en veille après 15 minutes sans trafic et peut prendre environ une minute à redémarrer. Deux services constamment actifs dépassent ce quota commun. La proposition désactive les déploiements automatiques, conserve la branche reviewable `improve/public-2026-10` et utilise la readiness de la base comme sonde. Le consentement GitHub Render, les accès aux bases, les secrets, les restrictions réseau et la validation de l’URL publique restent à effectuer. Cette configuration et les tests HTTPS locaux ne constituent pas un déploiement public confirmé.

@@ -599,12 +599,31 @@ try {
     await page.setViewportSize({ width, height: 1000 });
     await checkOverflow(page);
     await screenshot(`workspace-${width}`);
-    if (width <= 600) {
+    if (width <= 800) {
       await page
         .getByRole("button", { name: "Ouvrir la navigation", exact: true })
         .click();
       await checkOverflow(page);
       await screenshot(`navigation-${width}`);
+      const navigation = page.getByRole("dialog", {
+        name: "Navigation",
+        exact: true,
+      });
+      for (let count = 0; count < 18; count++) await page.keyboard.press("Tab");
+      assert.equal(
+        await navigation.evaluate((element) =>
+          element.contains(document.activeElement),
+        ),
+        true,
+        "Focus retenu dans la navigation mobile",
+      );
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("button", { name: "Ouvrir la navigation", exact: true }),
+      ).toBeFocused();
+      await page
+        .getByRole("button", { name: "Ouvrir la navigation", exact: true })
+        .click();
       await page
         .getByRole("button", { name: "Fermer la navigation", exact: true })
         .click();
@@ -624,7 +643,7 @@ try {
     );
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    if (width <= 600)
+    if (width <= 800)
       await page
         .getByRole("button", { name: "Ouvrir la navigation", exact: true })
         .click();
@@ -635,10 +654,6 @@ try {
     await screenshot(`profile-${width}`);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    if (width <= 600)
-      await page
-        .getByRole("button", { name: "Fermer la navigation", exact: true })
-        .click();
   }
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 320, height: 1000 });

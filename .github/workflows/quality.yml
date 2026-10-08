@@ -30,6 +30,8 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - run: npm run patch:devtools
+      - run: npm run test:compat
       - run: npm run db:generate
       - run: npm run db:migrate
       - run: npm run lint
@@ -38,6 +40,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
+      - run: docker build -t mes-listes-de-taches:ci .
       - name: Audit npm et limite connue
         run: |
           npm audit --audit-level=critical

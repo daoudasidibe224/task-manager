@@ -676,3 +676,63 @@ test("une indisponibilité après réservation de clé annule la création et au
     .expect(201);
   await connection.end();
 });
+
+test("disponibilité vérifie PostgreSQL et retourne503 sans révéler l’erreur interne", async () => {
+  await request(app.getHttpServer()).get("/api/ready").expect(200);
+  const { PrismaService } = await import("../backend/dist/prisma.service.js");
+  const prisma = app.get(PrismaService);
+  const query = prisma.$queryRaw;
+  prisma.$queryRaw = () => {
+    throw new Error("isolated database health failure");
+  };
+  try {
+    const response = await request(app.getHttpServer())
+      .get("/api/ready")
+      .expect(503);
+    assert.equal(response.body.message, "La base est indisponible.");
+    assert.ok(!JSON.stringify(response.body).includes("isolated"));
+    await request(app.getHttpServer()).get("/api/health").expect(200);
+  } finally {
+    prisma.$queryRaw = query;
+  }
+  await request(app.getHttpServer()).get("/api/ready").expect(200);
+});
+
+test("configuration publique exige HTTPS, origine exacte et nombre explicite de proxies", async () => {
+  const { runtimeConfiguration } =
+    await import("../backend/dist/config/runtime.js");
+  const previousNode = process.env.NODE_ENV,
+    previousOrigin = process.env.FRONTEND_URL;
+  process.env.NODE_ENV = "production";
+  process.env.FRONTEND_URL = "https://tasks.example.test";
+  try {
+    assert.equal(
+      runtimeConfiguration().FRONTEND_URL,
+      "https://tasks.example.test",
+    );
+    process.env.FRONTEND_URL = "http://tasks.example.test";
+    assert.throws(runtimeConfiguration);
+    process.env.FRONTEND_URL = "https://tasks.example.test/path";
+    assert.throws(runtimeConfiguration);
+    process.env.FRONTEND_URL = "https://tasks.example.test";
+    process.env.TRUST_PROXY = "true";
+    assert.throws(runtimeConfiguration);
+    delete process.env.TRUST_PROXY;
+    process.env.PORT = "0";
+    assert.throws(runtimeConfiguration);
+    delete process.env.PORT;
+    const response = await request(app.getHttpServer())
+      .post("/api/auth/register")
+      .send(account("production-cookie@example.test"))
+      .expect(201);
+    for (const cookie of response.headers["set-cookie"] ?? []) {
+      assert.match(cookie, /Secure/);
+      assert.match(cookie, /HttpOnly/);
+      assert.match(cookie, /SameSite=Lax/);
+    }
+  } finally {
+    if (previousNode === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNode;
+    process.env.FRONTEND_URL = previousOrigin;
+  }
+});

@@ -7,15 +7,47 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import express from 'express';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module.js';
+import { runtimeConfiguration } from './config/runtime.js';
 export async function createApplication() {
-  const app = await NestFactory.create(AppModule, {
+  const configuration = runtimeConfiguration();
+  const directory = process.env.SERVE_FRONTEND_DIRECTORY
+    ? path.resolve(process.env.SERVE_FRONTEND_DIRECTORY)
+    : null;
+  const hashes = directory
+    ? [
+        ...readFileSync(path.join(directory, 'index.html'), 'utf8').matchAll(
+          /<script\b[^>]*>([\s\S]*?)<\/script>/gi,
+        ),
+      ]
+        .filter((match) => match[1])
+        .map(
+          (match) =>
+            `'sha256-${createHash('sha256').update(match[1]!).digest('base64')}'`,
+        )
+    : [];
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn'],
   });
-  const frontend = process.env.FRONTEND_URL || 'http://127.0.0.1:4312';
+  const frontend = configuration.FRONTEND_URL;
+  app.set('trust proxy', configuration.TRUST_PROXY);
   app.setGlobalPrefix('api');
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          scriptSrc: ["'self'", ...hashes],
+          upgradeInsecureRequests:
+            process.env.NODE_ENV === 'production' ? [] : null,
+        },
+      },
+    }),
+  );
   app.use(cookieParser());
   app.enableCors({ origin: frontend, credentials: true });
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -39,6 +71,18 @@ export async function createApplication() {
       transformOptions: { enableImplicitConversion: false },
     }),
   );
+  if (directory) {
+    app.use(express.static(directory));
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (
+        !['GET', 'HEAD'].includes(req.method) ||
+        req.path === '/api' ||
+        req.path.startsWith('/api/')
+      )
+        return next();
+      res.sendFile(path.join(directory, 'index.html'));
+    });
+  }
   const document = SwaggerModule.createDocument(
     app,
     new DocumentBuilder()
@@ -47,14 +91,16 @@ export async function createApplication() {
       .addCookieAuth('accessToken')
       .build(),
   );
-  SwaggerModule.setup('api/docs', app, document);
+  if (process.env.NODE_ENV !== 'production')
+    SwaggerModule.setup('api/docs', app, document);
   app.enableShutdownHooks();
   return app;
 }
 async function bootstrap() {
   const app = await createApplication();
-  const port = Number(process.env.PORT || 8012);
-  await app.listen(port, process.env.HOST || '127.0.0.1');
+  const configuration = runtimeConfiguration();
+  const port = configuration.PORT;
+  await app.listen(port, configuration.HOST);
   console.log(`Mes listes de tâches API écoute sur ${port}`);
 }
 if (

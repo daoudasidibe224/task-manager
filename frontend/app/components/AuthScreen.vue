@@ -46,9 +46,18 @@ onMounted(async () => {
 });
 </script>
 <template>
-  <p v-if="!ready || workspace.user.value" class="loading-screen" role="status">
-    Ouverture de votre espace…
-  </p>
+  <main
+    v-if="!ready || workspace.user.value"
+    class="loading-screen"
+    role="status"
+  >
+    <span class="product-brand"
+      ><span class="brand-symbol"><UIcon name="i-lucide-list-checks" /></span
+      >Mes listes de tâches</span
+    >
+    <p>Ouverture de votre espace…</p>
+    <span class="loading-line" aria-hidden="true" />
+  </main>
   <div v-else class="auth-page">
     <NuxtLink class="product-brand" to="/"
       ><span class="brand-symbol"
@@ -69,9 +78,31 @@ onMounted(async () => {
       >Mes listes de tâches</NuxtLink
     >
     <main class="auth-grid">
+      <aside class="auth-intro">
+        <span class="kicker">Votre espace personnel</span>
+        <h1>Un agenda pour<br />vos listes.</h1>
+        <p>
+          Notez ce qui compte, choisissez une échéance et avancez étape par
+          étape.
+        </p>
+        <ul>
+          <li>
+            <UIcon name="i-lucide-list-checks" />Des listes et des étapes à
+            cocher
+          </li>
+          <li>
+            <UIcon name="i-lucide-calendar-days" />Une semaine pour vos
+            échéances
+          </li>
+          <li>
+            <UIcon name="i-lucide-lock-keyhole" />Un compte privé, sur tous vos
+            appareils
+          </li>
+        </ul>
+      </aside>
       <section class="auth-panel">
         <span class="kicker">{{
-          register ? "Mon agenda personnel" : "Mon agenda personnel"
+          register ? "Bienvenue" : "Heureux de vous retrouver"
         }}</span>
         <h2>{{ register ? "Créer votre compte" : "Se connecter" }}</h2>
         <p>

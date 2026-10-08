@@ -6,6 +6,43 @@ useHead({ title: "Mon espace · Mes listes de tâches" });
 const w = useWorkspace(),
   api = useTaskApi();
 const route = useRoute();
+const compactNavigation = ref(false);
+const navigation = ref<HTMLElement>();
+let removeNavigationListener: (() => void) | undefined;
+onUnmounted(() => removeNavigationListener?.());
+onMounted(() => {
+  const media = window.matchMedia("(max-width: 800px)");
+  const update = () => {
+    compactNavigation.value = media.matches;
+    if (!media.matches) navOpen.value = false;
+  };
+  update();
+  media.addEventListener("change", update);
+  removeNavigationListener = () => media.removeEventListener("change", update);
+});
+
+function navigationKey(event: KeyboardEvent) {
+  if (!compactNavigation.value || !navOpen.value) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    navOpen.value = false;
+  }
+  if (event.key !== "Tab") return;
+  const controls = [
+    ...(navigation.value?.querySelectorAll<HTMLElement>(
+      "button:not(:disabled), a[href]",
+    ) ?? []),
+  ].filter((element) => element.offsetParent !== null);
+  const first = controls[0],
+    last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
+}
 const view = ref(
     typeof route.query.view === "string" ? route.query.view : "all",
   ),
@@ -16,6 +53,16 @@ const view = ref(
   notice = ref(""),
   operationError = ref(""),
   busy = ref(false);
+watch(
+  () => navOpen.value,
+  async (open) => {
+    if (!compactNavigation.value) return;
+    await nextTick();
+    if (open)
+      navigation.value?.querySelector<HTMLButtonElement>("button")?.focus();
+    else document.querySelector<HTMLButtonElement>(".open-nav")?.focus();
+  },
+);
 watch(view, (value) =>
   navigateTo({ query: { ...route.query, view: value } }, { replace: true }),
 );
@@ -164,6 +211,7 @@ function select(id: string) {
   search.value = "";
 }
 function newList(list?: TaskList) {
+  navOpen.value = false;
   editingList.value = list;
   listName.value = list?.name ?? "";
   operationError.value = "";
@@ -224,6 +272,7 @@ async function saveList() {
   }
 }
 function openProfile() {
+  navOpen.value = false;
   if (w.user.value)
     Object.assign(profile, {
       firstname: w.user.value.firstname,
@@ -301,28 +350,31 @@ onMounted(initialize);
 </script>
 <template>
   <div v-if="!w.user.value" class="loading-screen">
+    <span class="product-brand"
+      ><span class="brand-symbol"><UIcon name="i-lucide-list-checks" /></span
+      >Mes listes de tâches</span
+    >
     <p v-if="w.error.value" role="alert">{{ w.error.value }}</p>
     <p v-else>Ouverture de votre espace…</p>
     <button v-if="w.error.value" @click="initialize">Réessayer</button>
   </div>
   <div v-else class="workspace">
     <div v-if="navOpen" class="nav-overlay" @click="navOpen = false" />
-    <header class="agenda-masthead">
-      <span>{{
-        new Date().toLocaleDateString("fr-FR", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })
-      }}</span
-      ><NuxtLink to="/dashboard">Mes listes de tâches</NuxtLink
-      ><small
-        >{{ pending.length }} tâche{{ pending.length > 1 ? "s" : "" }} à
-        faire</small
+    <aside
+      ref="navigation"
+      class="sidebar"
+      :class="{ opened: navOpen }"
+      :inert="compactNavigation && !navOpen"
+      :aria-hidden="compactNavigation && !navOpen ? true : undefined"
+      :role="compactNavigation ? 'dialog' : undefined"
+      :aria-modal="compactNavigation && navOpen ? true : undefined"
+      aria-label="Navigation"
+      @keydown="navigationKey"
+    >
+      <NuxtLink class="workspace-brand" to="/dashboard"
+        ><span class="brand-symbol"><UIcon name="i-lucide-check-check" /></span
+        ><span>Mes listes<br />de tâches</span></NuxtLink
       >
-    </header>
-    <aside class="sidebar" :class="{ opened: navOpen }">
-      <p class="sidebar-title">Mes vues</p>
       <UButton
         class="close-nav"
         color="neutral"
@@ -372,10 +424,25 @@ onMounted(initialize);
         Créer ma première liste
       </button>
       <div class="sidebar-bottom">
-        <p>Un peu d’ordre.<br />De la place pour le reste.</p>
+        <div class="workspace-tools">
+          <button aria-label="Exporter mes tâches" @click="exportData">
+            <UIcon name="i-lucide-download" />Exporter mes tâches</button
+          ><button
+            aria-label="Se déconnecter"
+            :disabled="busy"
+            @click="action(w.logout, '')"
+          >
+            <UIcon name="i-lucide-log-out" />Se déconnecter
+          </button>
+        </div>
         <button
           class="profile-button"
           aria-label="Gérer mon compte"
+          :title="
+            [w.user.value.firstname, w.user.value.lastname]
+              .filter(Boolean)
+              .join(' ')
+          "
           @click="openProfile"
         >
           <span class="avatar">{{ w.user.value?.firstname.slice(0, 1) }}</span
@@ -388,7 +455,7 @@ onMounted(initialize);
         </button>
       </div>
     </aside>
-    <main class="workspace-main">
+    <main class="workspace-main" :inert="compactNavigation && navOpen">
       <header class="workspace-top">
         <UButton
           class="open-nav"
@@ -397,94 +464,23 @@ onMounted(initialize);
           icon="i-lucide-menu"
           aria-label="Ouvrir la navigation"
           @click="navOpen = true"
-        />
-        <div class="agenda-week">
-          <div class="week-caption">
-            <span
-              >Semaine du
-              {{
-                new Date(`${weekDates[0]?.key}T12:00:00Z`).toLocaleDateString(
-                  "fr-FR",
-                  {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                    timeZone: "UTC",
-                  },
-                )
-              }}</span
-            ><button
-              @click="
-                weekOffset = 0;
-                selectDay(today());
-              "
-            >
-              Aujourd’hui
-            </button>
-          </div>
-          <div class="week-navigation">
-            <UButton
-              icon="i-lucide-chevron-left"
-              color="neutral"
-              variant="ghost"
-              aria-label="Semaine précédente"
-              @click="
-                weekOffset--;
-                selectedDate = '';
-              "
-            />
-            <div
-              class="week-days"
-              role="group"
-              aria-label="Échéances de la semaine"
-            >
-              <button
-                v-for="day in weekDates"
-                :key="day.key"
-                :aria-label="`Échéances du ${day.key}`"
-                :aria-pressed="selectedDate === day.key"
-                :class="{
-                  selected: selectedDate === day.key,
-                  today: day.key === today(),
-                }"
-                @click="selectDay(day.key)"
-              >
-                <span>{{ day.label }}</span
-                ><strong>{{ day.day }}</strong
-                ><small
-                  ><span>{{ day.count }}</span
-                  ><span class="week-count-label"> à faire</span></small
-                >
-              </button>
-            </div>
-            <UButton
-              icon="i-lucide-chevron-right"
-              color="neutral"
-              variant="ghost"
-              aria-label="Semaine suivante"
-              @click="
-                weekOffset++;
-                selectedDate = '';
-              "
-            />
-          </div>
-        </div>
-        <div>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-download"
-            aria-label="Exporter mes tâches"
-            @click="exportData"
-          /><UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-log-out"
-            aria-label="Se déconnecter"
-            :loading="busy"
-            @click="action(w.logout, '')"
-          />
-        </div>
+        /><span class="mobile-brand"
+          ><strong>Mes tâches</strong
+          ><small>{{
+            new Date().toLocaleDateString("fr-FR", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+            })
+          }}</small></span
+        ><span class="topline-date">{{
+          new Date().toLocaleDateString("fr-FR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })
+        }}</span
+        ><span class="topline-count">{{ pending.length }} à faire</span>
       </header>
       <div class="page-content">
         <div class="page-heading">
@@ -493,7 +489,10 @@ onMounted(initialize);
               Bonjour {{ w.user.value?.firstname || "à vous" }}
             </p>
             <h1>{{ title }}</h1>
-            <p>Tâches, priorités et échéances de votre agenda.</p>
+            <p>
+              {{ visible.length }} tâche{{ visible.length > 1 ? "s" : "" }} dans
+              cette vue
+            </p>
           </div>
           <UButton icon="i-lucide-plus" size="lg" @click="newTask()"
             >Nouvelle tâche</UButton
@@ -677,6 +676,87 @@ onMounted(initialize);
           Vos listes sont privées et enregistrées dans votre compte.
         </p>
       </div>
+      <aside class="agenda-side" aria-label="Agenda hebdomadaire">
+        <div class="agenda-heading">
+          <UIcon name="i-lucide-calendar-days" />
+          <h2>Votre semaine</h2>
+        </div>
+        <div class="agenda-week">
+          <div class="week-caption">
+            <span
+              >Semaine du
+              {{
+                new Date(`${weekDates[0]?.key}T12:00:00Z`).toLocaleDateString(
+                  "fr-FR",
+                  {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  },
+                )
+              }}</span
+            ><button
+              @click="
+                weekOffset = 0;
+                selectDay(today());
+              "
+            >
+              Aujourd’hui
+            </button>
+          </div>
+          <div class="week-navigation">
+            <UButton
+              icon="i-lucide-chevron-left"
+              color="neutral"
+              variant="ghost"
+              aria-label="Semaine précédente"
+              @click="
+                weekOffset--;
+                selectedDate = '';
+              "
+            />
+            <div
+              class="week-days"
+              role="group"
+              aria-label="Échéances de la semaine"
+            >
+              <button
+                v-for="day in weekDates"
+                :key="day.key"
+                :aria-label="`Échéances du ${day.key}`"
+                :aria-pressed="selectedDate === day.key"
+                :class="{
+                  selected: selectedDate === day.key,
+                  today: day.key === today(),
+                }"
+                @click="selectDay(day.key)"
+              >
+                <span>{{ day.label }}</span
+                ><strong>{{ day.day }}</strong
+                ><small
+                  ><span>{{ day.count }}</span
+                  ><span class="week-count-label"> à faire</span></small
+                >
+              </button>
+            </div>
+            <UButton
+              icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="ghost"
+              aria-label="Semaine suivante"
+              @click="
+                weekOffset++;
+                selectedDate = '';
+              "
+            />
+          </div>
+        </div>
+        <p class="agenda-help">
+          Choisissez un jour pour voir ses échéances. Une nouvelle tâche
+          reprendra cette date.
+        </p>
+      </aside>
     </main>
     <TaskEditor
       :open="taskOpen"

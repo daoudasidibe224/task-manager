@@ -36,9 +36,11 @@ const overdue = computed(
     />
     <button class="task-content" @click="emit('edit')">
       <strong>{{ task.shortDescription }}</strong
-      ><span v-if="task.longDescription" class="task-note">{{
-        task.longDescription
-      }}</span
+      ><span
+        v-if="task.longDescription"
+        class="task-note"
+        :title="task.longDescription"
+        >{{ task.longDescription }}</span
       ><span class="task-meta"
         ><span>{{ listName }}</span
         ><span v-if="due" :class="{ overdue }"

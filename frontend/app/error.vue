@@ -10,7 +10,7 @@ useHead({
 });
 </script>
 <template>
-  <div class="auth-page">
+  <div class="auth-page error-page">
     <div class="product-brand">
       <span class="brand-symbol"
         ><svg

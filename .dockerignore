@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/dist
+**/.output
+**/.nuxt*
+backend/src/generated
+.git
+test-results
+playwright-report

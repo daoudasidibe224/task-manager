@@ -1,0 +1,29 @@
+# Configuration proposée, sans service ni base distante déjà créés.
+services:
+  - type: web
+    name: mes-listes-de-taches
+    runtime: docker
+    plan: free
+    region: frankfurt
+    repo: https://github.com/daoudasidibe224/mes-listes-de-taches
+    branch: improve/public-2026-10
+    autoDeployTrigger: off
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "10000"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: REFRESH_TOKEN_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

@@ -14,13 +14,26 @@ import { APP_FILTER } from '@nestjs/core';
 import { Controller, Get } from '@nestjs/common';
 import { ApiResponseDto } from './common/dto/api-response.dto.js';
 import { Public } from './auth/decorators/public.decorator.js';
+import { PrismaService } from './prisma.service.js';
+import { ServiceUnavailableException } from '@nestjs/common';
 
 @Controller()
 export class HealthController {
+  constructor(private readonly prisma: PrismaService) {}
   @Public()
   @Get('health')
   health() {
     return ApiResponseDto.success('Service is healthy');
+  }
+  @Public()
+  @Get('ready')
+  async ready() {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return ApiResponseDto.success('Service is ready');
+    } catch {
+      throw new ServiceUnavailableException('La base est indisponible.');
+    }
   }
 }
 @Module({

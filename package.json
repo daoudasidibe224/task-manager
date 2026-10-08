@@ -1,5 +1,5 @@
 {
-  "name": "task-manager",
+  "name": "mes-listes-de-taches",
   "version": "2.0.0",
   "private": true,
   "engines": {
@@ -20,7 +20,9 @@
     "db:generate": "npm run db:generate -w backend",
     "db:migrate": "npm run db:migrate -w backend",
     "configure": "node scripts/configure.ts",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run e2e"
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run e2e",
+    "test:compat": "node --test tests/devtools-compat.test.ts",
+    "patch:devtools": "node scripts/patch-devtools.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
@@ -36,11 +38,11 @@
     "vue-eslint-parser": "^10.4.1"
   },
   "overrides": {
-    "simple-git": "4.0.2",
-    "@simple-git/argv-parser": "2.0.1",
     "mysql2": "3.24.5",
     "deepmerge-ts": "8.0.2",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "@nuxt/devtools": "3.4.2",
+    "simple-git": "4.0.2"
   },
   "type": "module"
 }
