@@ -2,7 +2,7 @@
 
 Un agenda privé pour organiser ses tâches par liste, choisir une priorité et garder les échéances visibles. L’application propose une vue d’ensemble, les tâches du jour, les retards et les tâches terminées. L’affichage en tableau sépare les actions à faire des actions terminées.
 
-La semaine en haut de l’agenda permet d’ouvrir les échéances d’une date, parcourir les semaines et revenir à aujourd’hui. Créer une tâche depuis une journée préremplit sa date. Une tâche peut contenir jusqu’à 20 étapes, cochables depuis sa ligne ou son formulaire. Copier une tâche ouvre une version modifiable avec ses notes, sa priorité et son échéance ; les étapes sont remises à faire. La copie n’est créée qu’après confirmation.
+La semaine en haut de l’agenda permet d’ouvrir les échéances d’une date, parcourir les semaines et revenir à aujourd’hui. Changer de semaine quitte le filtre d’une date pour revenir à la vue d’ensemble. Créer une tâche depuis une journée préremplit sa date. Une tâche peut contenir jusqu’à 20 étapes, cochables depuis sa ligne ou son formulaire. Copier une tâche ouvre une version modifiable avec ses notes, sa priorité et son échéance ; les étapes sont remises à faire. La copie n’est créée qu’après confirmation.
 
 L’inscription demande une adresse e-mail et un mot de passe. Le prénom est facultatif ; à défaut, la partie précédant l’arobase sert de nom personnel et reste modifiable dans le profil. Le compte est connecté après sa création. Le bouton Voir permet de vérifier le mot de passe sans le saisir une deuxième fois.
 

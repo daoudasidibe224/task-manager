@@ -420,7 +420,10 @@ onMounted(async () => {
               color="neutral"
               variant="ghost"
               aria-label="Semaine précédente"
-              @click="weekOffset--"
+              @click="
+                weekOffset--;
+                selectedDate = '';
+              "
             />
             <div
               class="week-days"
@@ -451,7 +454,10 @@ onMounted(async () => {
               color="neutral"
               variant="ghost"
               aria-label="Semaine suivante"
-              @click="weekOffset++"
+              @click="
+                weekOffset++;
+                selectedDate = '';
+              "
             />
           </div>
         </div>

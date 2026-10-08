@@ -248,6 +248,24 @@ try {
     page.getByText("Préparer le dossier", { exact: true }),
   ).toHaveCount(0);
   await page
+    .getByRole("button", { name: "Semaine suivante", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Vue d’ensemble", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Préparer le dossier", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Semaine précédente", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Échéances du 2026-10-09", exact: true })
+    .click();
+  await expect(
+    page.getByText("Préparer le dossier", { exact: true }),
+  ).toHaveCount(0);
+  await page
     .getByRole("button", { name: "Nouvelle tâche", exact: true })
     .click();
   await expect(page.getByLabel("Échéance", { exact: true })).toHaveValue(
