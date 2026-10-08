@@ -23,7 +23,7 @@ export const VALIDATION_MESSAGES = {
   FIRSTNAME: {
     REQUIRED: 'Le prénom est requis',
     STRING: 'Le prénom doit être une chaîne de caractères',
-    MIN_LENGTH: 'Le prénom doit contenir au moins 2 caractères',
+    MIN_LENGTH: 'Le prénom doit contenir au moins 1 caractère',
     MAX_LENGTH: 'Le prénom ne peut pas dépasser 50 caractères',
   },
 

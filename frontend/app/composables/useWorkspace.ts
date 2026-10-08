@@ -6,6 +6,7 @@ import {
   type User,
   type TaskList,
   type TaskDraft,
+  type Task,
 } from "~/types/contracts";
 export function useWorkspace() {
   const api = useTaskApi();
@@ -50,6 +51,31 @@ export function useWorkspace() {
     await load();
     await navigateTo("/dashboard");
   }
+  async function register(credentials: {
+    email: string;
+    password: string;
+    firstname?: string;
+  }) {
+    const profile = await api.send(
+      "auth/register",
+      profileSchema,
+      "POST",
+      credentials,
+    );
+    user.value = profile.user;
+    loaded.value = true;
+    await load();
+    await navigateTo("/dashboard");
+  }
+  async function updateChecklist(task: Task, id: string, completed: boolean) {
+    await api.send(`tasks/${task.id}`, taskSchema, "PATCH", {
+      expectedUpdatedAt: task.updatedAt,
+      checklist: task.checklist.map((item) =>
+        item.id === id ? { ...item, completed } : item,
+      ),
+    });
+    await load();
+  }
   async function logout() {
     await api.send("auth/logout", z.unknown(), "POST");
     user.value = null;
@@ -80,10 +106,12 @@ export function useWorkspace() {
     draft: TaskDraft,
     id?: string,
     expectedUpdatedAt?: string,
+    requestId?: string,
   ) {
     const body = {
       ...draft,
       expectedUpdatedAt,
+      ...(!id ? { requestId } : {}),
       dueDate: draft.dueDate
         ? new Date(`${draft.dueDate}T12:00:00Z`).toISOString()
         : null,
@@ -121,6 +149,8 @@ export function useWorkspace() {
     error,
     load,
     login,
+    register,
+    updateChecklist,
     logout,
     createList,
     renameList,

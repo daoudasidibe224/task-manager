@@ -1,47 +1,39 @@
 <script setup lang="ts">
-import { z } from "zod";
 const props = defineProps<{ register?: boolean }>();
 const workspace = useWorkspace();
-const api = useTaskApi();
 const fields = reactive({
   firstname: "",
-  lastname: "",
   email: "",
   password: "",
-  confirm: "",
 });
+const errorTarget = ref<HTMLParagraphElement>();
 const busy = ref(false),
   error = ref(""),
-  success = ref(""),
   visible = ref(false);
 async function submit() {
   if (busy.value) return;
   busy.value = true;
   error.value = "";
-  success.value = "";
   try {
     if (props.register) {
-      if (fields.password !== fields.confirm)
-        throw new Error("Les mots de passe ne correspondent pas.");
-      const response = await api.send("auth/register", z.unknown(), "POST", {
-        firstname: fields.firstname,
-        lastname: fields.lastname,
+      await workspace.register({
         email: fields.email,
         password: fields.password,
+        ...(fields.firstname.trim()
+          ? { firstname: fields.firstname.trim() }
+          : {}),
       });
-      void response;
-      await navigateTo("/login?created=1");
     } else
       await workspace.login({ email: fields.email, password: fields.password });
   } catch (cause) {
     error.value = messageFrom(cause);
+    await nextTick();
+    errorTarget.value?.focus();
   } finally {
     busy.value = false;
   }
 }
 onMounted(async () => {
-  if (useRoute().query.created === "1")
-    success.value = "Votre compte est créé. Vous pouvez vous connecter.";
   try {
     await workspace.load();
     if (workspace.user.value) await navigateTo("/dashboard");
@@ -84,29 +76,6 @@ onMounted(async () => {
           }}
         </p>
         <form @submit.prevent="submit">
-          <div v-if="register" class="form-columns">
-            <label for="firstname"
-              >Prénom<input
-                id="firstname"
-                v-model="fields.firstname"
-                name="firstname"
-                autocomplete="given-name"
-                minlength="2"
-                maxlength="50"
-                required
-                :disabled="busy" /></label
-            ><label for="lastname"
-              >Nom<input
-                id="lastname"
-                v-model="fields.lastname"
-                name="lastname"
-                autocomplete="family-name"
-                minlength="2"
-                maxlength="50"
-                required
-                :disabled="busy"
-            /></label>
-          </div>
           <label for="email"
             >Adresse e-mail<input
               id="email"
@@ -147,18 +116,24 @@ onMounted(async () => {
           <p v-if="register" class="field-hint">
             Au moins 8 caractères, une majuscule, une minuscule et un chiffre.
           </p>
-          <label v-if="register" for="confirm"
-            >Confirmer le mot de passe<input
-              id="confirm"
-              v-model="fields.confirm"
-              type="password"
-              autocomplete="new-password"
-              maxlength="72"
-              required
+          <label v-if="register" for="firstname"
+            >Prénom (facultatif)<input
+              id="firstname"
+              v-model="fields.firstname"
+              autocomplete="given-name"
+              maxlength="50"
               :disabled="busy"
+              placeholder="À compléter plus tard si vous préférez"
           /></label>
-          <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-          <p v-if="success" class="form-success" role="status">{{ success }}</p>
+          <p
+            v-if="error"
+            ref="errorTarget"
+            tabindex="-1"
+            class="form-error"
+            role="alert"
+          >
+            {{ error }}
+          </p>
           <UButton
             class="auth-submit"
             type="submit"

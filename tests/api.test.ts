@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import request from "supertest";
@@ -44,12 +44,15 @@ before(async () => {
   await admin.query(`CREATE DATABASE "${db}"`);
   const connection = new Client({ connectionString: url.toString() });
   await connection.connect();
-  await connection.query(
-    await readFile(
-      "backend/prisma/migrations/20261008163000_initial/migration.sql",
-      "utf8",
-    ),
-  );
+  for (const migration of (await readdir("backend/prisma/migrations")).sort()) {
+    if (migration === "migration_lock.toml") continue;
+    await connection.query(
+      await readFile(
+        `backend/prisma/migrations/${migration}/migration.sql`,
+        "utf8",
+      ),
+    );
+  }
   await connection.end();
   process.env.DATABASE_URL = url.toString();
   process.env.JWT_SECRET = "api-test-access-secret-at-least-32-characters";
@@ -464,4 +467,212 @@ test("profil explicite, suppression liste et compte en cascade persistée", asyn
     0,
   );
   await dbClient.end();
+});
+
+async function productFixture() {
+  const email = `product-${randomUUID()}@example.test`;
+  const response = await request(app.getHttpServer())
+    .post("/api/auth/register")
+    .send({ email, password: "GoodPass123" })
+    .expect(201);
+  const session = cookies(response);
+  const person = registered.parse(response.body).data.user;
+  const list = await request(app.getHttpServer())
+    .post("/api/task-lists")
+    .set("Cookie", session)
+    .send({ name: "Étapes du projet" })
+    .expect(201);
+  return { session, person, listId: item.parse(list.body).data.id };
+}
+const checklistResponse = z.object({
+  data: z.object({
+    id: z.string(),
+    updatedAt: z.string(),
+    checklist: z.array(
+      z.object({ id: z.uuid(), text: z.string(), completed: z.boolean() }),
+    ),
+  }),
+});
+test("inscription minimale connecte immédiatement et le prénom peut être complété plus tard", async () => {
+  const fixture = await productFixture();
+  assert.match(fixture.person.firstname, /^product-/);
+  await request(app.getHttpServer())
+    .get("/api/auth/profile")
+    .set("Cookie", fixture.session)
+    .expect(200);
+  await request(app.getHttpServer())
+    .patch(`/api/user/${fixture.person.id}`)
+    .set("Cookie", fixture.session)
+    .send({ firstname: "Camille", lastname: "" })
+    .expect(200);
+  await request(app.getHttpServer())
+    .post("/api/auth/register")
+    .send({
+      email: `invalid-${randomUUID()}@example.test`,
+      password: "GoodPass123",
+      firstname: null,
+    })
+    .expect(400);
+});
+test("checklist persistée, frontière stricte et deux éditions concurrentes préservent la version gagnante", async () => {
+  const fixture = await productFixture(),
+    step = { id: randomUUID(), text: "Relire le document", completed: false };
+  const response = await request(app.getHttpServer())
+    .post("/api/tasks")
+    .set("Cookie", fixture.session)
+    .send({
+      listId: fixture.listId,
+      shortDescription: "Un dossier complet",
+      checklist: [step],
+    })
+    .expect(201);
+  const task = checklistResponse.parse(response.body).data;
+  const outcomes = await Promise.all(
+    [true, false].map((completed) =>
+      request(app.getHttpServer())
+        .patch(`/api/tasks/${task.id}`)
+        .set("Cookie", fixture.session)
+        .send({
+          expectedUpdatedAt: task.updatedAt,
+          checklist: [{ ...step, completed }],
+        }),
+    ),
+  );
+  assert.deepEqual(outcomes.map((result) => result.status).sort(), [200, 409]);
+  const reloaded = checklistResponse.parse(
+    (
+      await request(app.getHttpServer())
+        .get(`/api/tasks/${task.id}`)
+        .set("Cookie", fixture.session)
+        .expect(200)
+    ).body,
+  ).data;
+  assert.deepEqual(
+    reloaded.checklist,
+    checklistResponse.parse(
+      outcomes.find((result) => result.status === 200)!.body,
+    ).data.checklist,
+  );
+  for (const checklist of [
+    null,
+    [step, step],
+    [{ ...step, text: "" }],
+    [{ ...step, completed: "false" }],
+    Array.from({ length: 21 }, () => ({ ...step, id: randomUUID() })),
+  ])
+    await request(app.getHttpServer())
+      .patch(`/api/tasks/${task.id}`)
+      .set("Cookie", fixture.session)
+      .send({ checklist })
+      .expect(400);
+  await request(app.getHttpServer())
+    .patch(`/api/tasks/${task.id}`)
+    .set("Cookie", bobCookies)
+    .send({ checklist: [] })
+    .expect(403);
+});
+test("création UUID simultanée et reprise après édition restent uniques; suppression ne permet pas résurrection", async () => {
+  const fixture = await productFixture();
+  const body = {
+    listId: fixture.listId,
+    shortDescription: "Copie de mon projet",
+    requestId: randomUUID(),
+    checklist: [{ id: randomUUID(), text: "Première étape", completed: false }],
+  };
+  const results = await Promise.all([
+    request(app.getHttpServer())
+      .post("/api/tasks")
+      .set("Cookie", fixture.session)
+      .send(body),
+    request(app.getHttpServer())
+      .post("/api/tasks")
+      .set("Cookie", fixture.session)
+      .send(body),
+  ]);
+  assert.ok(results.every((result) => result.status === 201));
+  const task = checklistResponse.parse(results[0].body).data;
+  assert.equal(item.parse(results[1].body).data.id, task.id);
+  await request(app.getHttpServer())
+    .patch(`/api/tasks/${task.id}`)
+    .set("Cookie", fixture.session)
+    .send({ shortDescription: "Titre ajusté" })
+    .expect(200);
+  const retry = await request(app.getHttpServer())
+    .post("/api/tasks")
+    .set("Cookie", fixture.session)
+    .send(body)
+    .expect(201);
+  assert.equal(item.parse(retry.body).data.id, task.id);
+  await request(app.getHttpServer())
+    .post("/api/tasks")
+    .set("Cookie", fixture.session)
+    .send({ ...body, shortDescription: "Autre intention" })
+    .expect(409);
+  await request(app.getHttpServer())
+    .delete(`/api/tasks/${task.id}`)
+    .set("Cookie", fixture.session)
+    .expect(200);
+  await request(app.getHttpServer())
+    .post("/api/tasks")
+    .set("Cookie", fixture.session)
+    .send(body)
+    .expect(409);
+  const connection = new Client({ connectionString: url.toString() });
+  await connection.connect();
+  const keys = await connection.query(
+    'SELECT "taskId" FROM "TaskCreation" WHERE "id"=$1',
+    [body.requestId],
+  );
+  assert.equal(keys.rows.length, 1);
+  assert.equal(keys.rows[0].taskId, null);
+  await request(app.getHttpServer())
+    .delete(`/api/user/${fixture.person.id}`)
+    .set("Cookie", fixture.session)
+    .expect(200);
+  const remaining = await connection.query(
+    'SELECT COUNT(*) FROM "TaskCreation" WHERE "userId"=$1',
+    [fixture.person.id],
+  );
+  assert.equal(remaining.rows[0].count, "0");
+  await connection.end();
+});
+
+test("une indisponibilité après réservation de clé annule la création et autorise la reprise", async () => {
+  const fixture = await productFixture(),
+    requestId = randomUUID();
+  const connection = new Client({ connectionString: url.toString() });
+  await connection.connect();
+  await connection.query(
+    'ALTER TABLE "tasks" RENAME TO "tasks_temporarily_unavailable"',
+  );
+  try {
+    await request(app.getHttpServer())
+      .post("/api/tasks")
+      .set("Cookie", fixture.session)
+      .send({
+        listId: fixture.listId,
+        shortDescription: "Création après reprise",
+        requestId,
+      })
+      .expect(500);
+  } finally {
+    await connection.query(
+      'ALTER TABLE "tasks_temporarily_unavailable" RENAME TO "tasks"',
+    );
+  }
+  const reserved = await connection.query(
+    'SELECT COUNT(*) FROM "TaskCreation" WHERE "id"=$1',
+    [requestId],
+  );
+  assert.equal(reserved.rows[0].count, "0");
+  await request(app.getHttpServer())
+    .post("/api/tasks")
+    .set("Cookie", fixture.session)
+    .send({
+      listId: fixture.listId,
+      shortDescription: "Création après reprise",
+      requestId,
+    })
+    .expect(201);
+  await connection.end();
 });

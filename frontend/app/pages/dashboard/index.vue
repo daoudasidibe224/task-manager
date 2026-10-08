@@ -24,6 +24,30 @@ watch(
     view.value = typeof value === "string" ? value : "all";
   },
 );
+const copyingTask = ref<Task>(),
+  selectedDate = ref(""),
+  weekOffset = ref(0);
+const weekDates = computed(() => {
+  const base = new Date(`${today()}T12:00:00Z`);
+  base.setUTCDate(
+    base.getUTCDate() - ((base.getUTCDay() + 6) % 7) + weekOffset.value * 7,
+  );
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(base);
+    date.setUTCDate(base.getUTCDate() + index);
+    const key = date.toISOString().slice(0, 10);
+    return {
+      key,
+      label: date.toLocaleDateString("fr-FR", {
+        weekday: "short",
+        timeZone: "UTC",
+      }),
+      day: date.getUTCDate(),
+      count: pending.value.filter((task) => task.dueDate?.slice(0, 10) === key)
+        .length,
+    };
+  });
+});
 const taskOpen = ref(false),
   editingTask = ref<Task>(),
   listOpen = ref(false),
@@ -53,7 +77,12 @@ const selectedList = computed(() =>
 );
 const title = computed(
   () =>
-    selectedList.value?.name ??
+    (selectedDate.value
+      ? new Date(`${selectedDate.value}T12:00:00Z`).toLocaleDateString(
+          "fr-FR",
+          { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" },
+        )
+      : selectedList.value?.name) ??
     {
       all: "Vue d’ensemble",
       today: "Aujourd’hui",
@@ -69,6 +98,11 @@ const visible = computed(() => {
     tasks = pending.value.filter((t) => t.dueDate?.slice(0, 10) === today());
   else if (view.value === "overdue") tasks = overdue.value;
   else if (view.value === "done") tasks = completed.value;
+  if (selectedDate.value)
+    tasks = tasks.filter(
+      (task) =>
+        !task.completed && task.dueDate?.slice(0, 10) === selectedDate.value,
+    );
   const query = search.value.trim().toLocaleLowerCase("fr");
   tasks = tasks.filter((t) =>
     `${t.shortDescription} ${t.longDescription ?? ""}`
@@ -123,6 +157,7 @@ const navItems = computed(() => [
 const listLabel = (id: string) =>
   w.lists.value.find((l) => l.id === id)?.name ?? "";
 function select(id: string) {
+  selectedDate.value = "";
   view.value = id;
   navOpen.value = false;
   search.value = "";
@@ -138,8 +173,19 @@ function newTask(task?: Task) {
     newList();
     return;
   }
+  copyingTask.value = undefined;
   editingTask.value = task;
   taskOpen.value = true;
+}
+function duplicateTask(task: Task) {
+  editingTask.value = undefined;
+  copyingTask.value = task;
+  taskOpen.value = true;
+}
+function selectDay(key: string) {
+  view.value = "all";
+  selectedDate.value = key;
+  search.value = "";
 }
 async function action(fn: () => Promise<void>, message: string) {
   if (busy.value) return false;
@@ -253,25 +299,23 @@ onMounted(async () => {
 <template>
   <div class="workspace">
     <div v-if="navOpen" class="nav-overlay" @click="navOpen = false" />
+    <header class="agenda-masthead">
+      <span>{{
+        new Date().toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })
+      }}</span
+      ><NuxtLink to="/dashboard">Mes listes de tâches</NuxtLink
+      ><small
+        >{{ pending.length }} tâche{{ pending.length > 1 ? "s" : "" }} à
+        faire</small
+      >
+    </header>
     <aside class="sidebar" :class="{ opened: navOpen }">
-      <NuxtLink class="workspace-brand" to="/dashboard"
-        ><span
-          ><svg
-            width="21"
-            height="21"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="m3 5 2 2 4-4m-6 11 2 2 4-4m4-7h8m-8 9h8M3 21h18"
-            /></svg></span
-        >Mes listes de tâches</NuxtLink
-      ><UButton
+      <p class="sidebar-title">Mes vues</p>
+      <UButton
         class="close-nav"
         color="neutral"
         variant="ghost"
@@ -321,7 +365,11 @@ onMounted(async () => {
       </button>
       <div class="sidebar-bottom">
         <p>Un peu d’ordre.<br />De la place pour le reste.</p>
-        <button class="profile-button" @click="openProfile">
+        <button
+          class="profile-button"
+          aria-label="Gérer mon compte"
+          @click="openProfile"
+        >
           <span class="avatar">{{ w.user.value?.firstname.slice(0, 1) }}</span
           ><span
             ><strong
@@ -342,15 +390,71 @@ onMounted(async () => {
           aria-label="Ouvrir la navigation"
           @click="navOpen = true"
         />
-        <p>
-          {{
-            new Date().toLocaleDateString("fr-FR", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })
-          }}
-        </p>
+        <div class="agenda-week">
+          <div class="week-caption">
+            <span
+              >Semaine du
+              {{
+                new Date(`${weekDates[0]?.key}T12:00:00Z`).toLocaleDateString(
+                  "fr-FR",
+                  {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  },
+                )
+              }}</span
+            ><button
+              @click="
+                weekOffset = 0;
+                selectDay(today());
+              "
+            >
+              Aujourd’hui
+            </button>
+          </div>
+          <div class="week-navigation">
+            <UButton
+              icon="i-lucide-chevron-left"
+              color="neutral"
+              variant="ghost"
+              aria-label="Semaine précédente"
+              @click="weekOffset--"
+            />
+            <div
+              class="week-days"
+              role="group"
+              aria-label="Échéances de la semaine"
+            >
+              <button
+                v-for="day in weekDates"
+                :key="day.key"
+                :aria-label="`Échéances du ${day.key}`"
+                :aria-pressed="selectedDate === day.key"
+                :class="{
+                  selected: selectedDate === day.key,
+                  today: day.key === today(),
+                }"
+                @click="selectDay(day.key)"
+              >
+                <span>{{ day.label }}</span
+                ><strong>{{ day.day }}</strong
+                ><small
+                  ><span>{{ day.count }}</span
+                  ><span class="week-count-label"> à faire</span></small
+                >
+              </button>
+            </div>
+            <UButton
+              icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="ghost"
+              aria-label="Semaine suivante"
+              @click="weekOffset++"
+            />
+          </div>
+        </div>
         <div>
           <UButton
             color="neutral"
@@ -381,7 +485,14 @@ onMounted(async () => {
             >Nouvelle tâche</UButton
           >
         </div>
-        <div v-if="view === 'all'" class="summary-grid">
+        <button
+          v-if="selectedDate"
+          class="date-clear"
+          @click="selectedDate = ''"
+        >
+          Afficher tout l’agenda
+        </button>
+        <div v-if="view === 'all' && !selectedDate" class="summary-grid">
           <button @click="select('all')">
             <span>À faire</span><strong>{{ pending.length }}</strong
             ><UIcon name="i-lucide-list-todo" /></button
@@ -518,6 +629,14 @@ onMounted(async () => {
                 :list-name="listLabel(task.listId)"
                 :busy="busy"
                 @edit="newTask(task)"
+                @duplicate="duplicateTask(task)"
+                @step="
+                  (id, value) =>
+                    action(
+                      () => w.updateChecklist(task, id, value),
+                      'Étape enregistrée.',
+                    )
+                "
                 @complete="
                   (value) =>
                     action(
@@ -548,6 +667,8 @@ onMounted(async () => {
     <TaskEditor
       :open="taskOpen"
       :task="editingTask"
+      :copy-from="copyingTask"
+      :initial-date="selectedDate"
       :lists="w.lists.value"
       :initial-list="selectedList?.id"
       @close="taskOpen = false"
@@ -564,7 +685,7 @@ onMounted(async () => {
               v-model="listName"
               autofocus
               required
-              minlength="2"
+              minlength="1"
               maxlength="100"
               placeholder="Travail, maison, idées…"
           /></label>
@@ -603,7 +724,7 @@ onMounted(async () => {
                 required
                 maxlength="50" /></label
             ><label
-              >Nom<input v-model="profile.lastname" required maxlength="50"
+              >Nom<input v-model="profile.lastname" maxlength="50"
             /></label>
           </div>
           <label

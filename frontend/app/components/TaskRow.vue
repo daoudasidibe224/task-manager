@@ -5,6 +5,8 @@ const emit = defineEmits<{
   complete: [completed: boolean];
   edit: [];
   remove: [];
+  duplicate: [];
+  step: [id: string, completed: boolean];
 }>();
 const due = computed(() =>
   props.task.dueDate
@@ -49,10 +51,37 @@ const overdue = computed(
     <UButton
       color="neutral"
       variant="ghost"
+      icon="i-lucide-copy"
+      :aria-label="`Copier ${task.shortDescription}`"
+      :disabled="busy"
+      @click="emit('duplicate')"
+    />
+    <UButton
+      color="neutral"
+      variant="ghost"
       icon="i-lucide-trash-2"
       :aria-label="`Supprimer ${task.shortDescription}`"
       :disabled="busy"
       @click="emit('remove')"
     />
+    <details v-if="task.checklist.length" class="task-checklist">
+      <summary>
+        {{ task.checklist.filter((item) => item.completed).length }}/{{
+          task.checklist.length
+        }}
+        étapes
+      </summary>
+      <label v-for="step in task.checklist" :key="step.id"
+        ><input
+          type="checkbox"
+          :checked="step.completed"
+          :disabled="busy"
+          :aria-label="`Étape : ${step.text}`"
+          @change="emit('step', step.id, !step.completed)"
+        /><span :class="{ 'step-done': step.completed }">{{
+          step.text
+        }}</span></label
+      >
+    </details>
   </article>
 </template>

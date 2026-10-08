@@ -21,6 +21,7 @@ model User {
   email        String     @unique @db.VarChar(100)
   password     String     @db.VarChar(100)
   sessions     Session[]
+  taskCreations TaskCreation[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   taskLists    TaskList[]
@@ -48,6 +49,8 @@ model Task {
   dueDate          DateTime?
   priority         Priority @default(NORMAL)
   completed        Boolean  @default(false)
+  checklist        Json     @default("[]")
+  creation         TaskCreation?
   listId           String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -68,5 +71,16 @@ model Session {
  expiresAt DateTime
  createdAt DateTime @default(now())
  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ @@index([userId])
+}
+
+model TaskCreation {
+ id String @id @db.Uuid
+ userId String
+ payloadHash String
+ taskId String? @unique
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ task Task? @relation(fields:[taskId], references:[id], onDelete:SetNull)
  @@index([userId])
 }

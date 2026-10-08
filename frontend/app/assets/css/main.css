@@ -1101,3 +1101,265 @@ input {
   --ui-primary: #76273f;
   --ui-radius: 0.2rem;
 }
+
+/* Agenda: a dated masthead and an interactive week, followed by workspace views. */
+.agenda-masthead {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 40px;
+  background: #fff;
+  border-bottom: 1px solid #d6d7df;
+}
+.agenda-masthead > a {
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+  color: #76273f;
+  text-align: center;
+}
+.agenda-masthead > span {
+  text-transform: capitalize;
+  font-size: 14px;
+  color: #465061;
+}
+.agenda-masthead > small {
+  text-align: right;
+  font-size: 14px;
+  color: #465061;
+}
+.sidebar-title {
+  font-size: 14px;
+  font-weight: 650;
+  align-self: center;
+  margin-bottom: 18px;
+  color: #465061;
+}
+.week-navigation {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  gap: 5px;
+}
+.week-days {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.week-days > button {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 58px;
+  text-align: center;
+  border: 1px solid #d6d7df;
+  padding: 8px 5px;
+  background: white;
+  border-radius: 3px;
+  color: #465061;
+}
+.week-days > button strong {
+  font-size: 20px;
+  color: #202635;
+}
+.week-days > button span,
+.week-days > button small {
+  font-size: 12px;
+}
+.week-days > button.today {
+  border-bottom: 3px solid #76273f;
+}
+.week-days > button.selected {
+  background: #76273f;
+  color: white;
+  border-color: #76273f;
+}
+.week-days > button.selected strong {
+  color: white;
+}
+.date-clear {
+  color: #76273f;
+  font-size: 14px;
+  text-decoration: underline;
+  margin: 0 0 20px;
+}
+.workspace-top > .week-navigation {
+  gap: 5px;
+}
+.checklist-editor {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #d6d7df;
+  padding-top: 15px;
+}
+.checklist-editor legend {
+  font-weight: 650;
+  font-size: 14px;
+}
+.checklist-editor legend span {
+  color: #465061;
+  font-weight: 400;
+  margin-left: 8px;
+}
+.checklist-line {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.checklist-line input {
+  min-width: 0;
+  flex: 1;
+}
+.checklist-line input[type="checkbox"],
+.task-checklist input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: #76273f;
+}
+.task-row {
+  flex-wrap: wrap;
+}
+.task-checklist {
+  width: 100%;
+  margin: 4px 0 0 34px;
+  font-size: 14px;
+  color: #465061;
+}
+.task-checklist summary {
+  cursor: pointer;
+  color: #76273f;
+}
+.task-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+.step-done {
+  text-decoration: line-through;
+  color: #596170;
+}
+@media (min-width: 601px) {
+  .sidebar {
+    grid-template-columns: auto 1fr auto;
+  }
+  .sidebar-title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .sidebar > nav:first-of-type {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+@media (max-width: 800px) {
+  .agenda-masthead {
+    padding: 16px 25px;
+    grid-template-columns: 1fr auto;
+  }
+  .agenda-masthead > a {
+    grid-column: 1/3;
+    grid-row: 1;
+  }
+  .agenda-masthead > span {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .agenda-masthead > small {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .workspace-top {
+    flex-wrap: wrap;
+  }
+  .workspace-top > .week-navigation {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .week-days > button {
+    min-width: 48px;
+  }
+  .sidebar > nav:first-of-type {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 600px) {
+  .agenda-masthead {
+    padding: 16px;
+    gap: 8px;
+  }
+  .agenda-masthead > a {
+    font-size: 20px;
+  }
+  .agenda-masthead > span,
+  .agenda-masthead > small {
+    font-size: 12px;
+  }
+  .sidebar-title {
+    display: none;
+  }
+  .task-checklist {
+    margin-left: 32px;
+  }
+  .week-days > button {
+    min-width: 45px;
+  }
+  .week-days > button small {
+    font-size: 11px;
+  }
+  .week-navigation > button {
+    padding: 5px !important;
+  }
+  .week-days {
+    gap: 4px;
+  }
+}
+.workspace-top > .agenda-week {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+}
+.week-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #465061;
+}
+.week-caption button {
+  text-decoration: underline;
+  color: #76273f;
+  font-weight: 600;
+}
+@media (max-width: 800px) {
+  .workspace-top > .agenda-week {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 600px) {
+  .week-days {
+    gap: 3px;
+  }
+  .week-days > button {
+    min-width: 0;
+    padding: 8px 1px;
+  }
+  .week-days > button strong {
+    font-size: 18px;
+  }
+  .week-count-label {
+    display: none;
+  }
+}

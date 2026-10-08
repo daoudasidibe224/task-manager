@@ -6,7 +6,7 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { UserService } from '../user/user.service.js';
 import { PrismaService } from '../prisma.service.js';
 import { LoginDto } from './dto/login.dto.js';
-import { CreateUserDto } from '../user/dto/create-user.dto.js';
+import { RegisterDto } from './dto/register.dto.js';
 import { UserResponseDto } from '../user/dto/user-response.dto.js';
 import {
   jwtPayloadSchema,
@@ -63,11 +63,14 @@ export class AuthService {
       tokens,
     });
   }
-  async register(data: CreateUserDto) {
-    return ApiResponseDto.success(
-      'Votre compte est créé. Vous pouvez vous connecter.',
-      { user: await this.users.create(data) },
-    );
+  async register(data: RegisterDto) {
+    await this.users.create({
+      email: data.email,
+      password: data.password,
+      firstname: data.firstname ?? data.email.split('@')[0]!.slice(0, 50),
+      lastname: data.lastname ?? '',
+    });
+    return this.login({ email: data.email, password: data.password });
   }
   async refreshTokens(token: string) {
     let payload: JwtPayload;

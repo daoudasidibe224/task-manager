@@ -15,12 +15,12 @@ export class CreateUserDto {
   @ApiProperty({
     description: "Prénom de l'utilisateur",
     example: 'Jean',
-    minLength: 2,
+    minLength: 1,
     maxLength: 50,
   })
   @IsNotEmpty({ message: VALIDATION_MESSAGES.FIRSTNAME.REQUIRED })
   @IsString({ message: VALIDATION_MESSAGES.FIRSTNAME.STRING })
-  @MinLength(2, { message: VALIDATION_MESSAGES.FIRSTNAME.MIN_LENGTH })
+  @MinLength(1, { message: VALIDATION_MESSAGES.FIRSTNAME.MIN_LENGTH })
   @MaxLength(50, { message: VALIDATION_MESSAGES.FIRSTNAME.MAX_LENGTH })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
@@ -30,12 +30,11 @@ export class CreateUserDto {
   @ApiProperty({
     description: "Nom de famille de l'utilisateur",
     example: 'Dupont',
-    minLength: 2,
+    minLength: 0,
     maxLength: 50,
   })
-  @IsNotEmpty({ message: VALIDATION_MESSAGES.LASTNAME.REQUIRED })
   @IsString({ message: VALIDATION_MESSAGES.LASTNAME.STRING })
-  @MinLength(2, { message: VALIDATION_MESSAGES.LASTNAME.MIN_LENGTH })
+  @MinLength(0, { message: VALIDATION_MESSAGES.LASTNAME.MIN_LENGTH })
   @MaxLength(50, { message: VALIDATION_MESSAGES.LASTNAME.MAX_LENGTH })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
@@ -59,7 +58,7 @@ export class CreateUserDto {
       "Mot de passe de l'utilisateur (doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre)",
     example: 'MonMotDePasse123',
     minLength: 8,
-    maxLength: 50,
+    maxLength: 72,
   })
   @IsNotEmpty({ message: VALIDATION_MESSAGES.PASSWORD.REQUIRED })
   @IsString({ message: VALIDATION_MESSAGES.PASSWORD.STRING })

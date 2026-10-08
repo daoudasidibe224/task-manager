@@ -1,6 +1,7 @@
 import { Prisma } from '../generated/prisma/client.js';
 import {
   Injectable,
+  BadRequestException,
   NotFoundException,
   ForbiddenException,
   ConflictException,
@@ -11,6 +12,9 @@ import { TaskResponseDto } from './dto/task-response.dto.js';
 import { PrismaService } from '../prisma.service.js';
 import { VALIDATION_MESSAGES } from '../common/constants/validation-messages.js';
 
+import { createHash } from 'node:crypto';
+import { checklistSchema } from './dto/checklist.dto.js';
+import { presentTask } from './task-presenter.js';
 interface TaskFilter {
   listId?: string;
   completed?: boolean;
@@ -39,16 +43,64 @@ export class TaskService {
       );
     }
 
-    const { listId, ...data } = createTaskDto;
-    const task = await this.prisma.task.create({
-      data: {
-        ...data,
-        list: {
-          connect: { id: listId },
-        },
-      },
-    });
-    return task;
+    const { listId, requestId, checklist, ...fields } = createTaskDto;
+    const checked = checklistSchema.safeParse(checklist ?? []);
+    if (!checked.success)
+      throw new BadRequestException(
+        'Les étapes doivent être valides et leurs identifiants distincts.',
+      );
+    const data = {
+      ...fields,
+      checklist: checked.data.map((item) => ({ ...item })),
+      listId,
+    };
+    if (!requestId) return presentTask(await this.prisma.task.create({ data }));
+    const hash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          listId,
+          shortDescription: fields.shortDescription,
+          longDescription: fields.longDescription ?? null,
+          dueDate: fields.dueDate?.toISOString() ?? null,
+          priority: fields.priority ?? 'NORMAL',
+          completed: fields.completed ?? false,
+          checklist: checked.data,
+        }),
+      )
+      .digest('hex');
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        await transaction.taskCreation.create({
+          data: { id: requestId, userId, payloadHash: hash },
+        });
+        const task = await transaction.task.create({ data });
+        await transaction.taskCreation.update({
+          where: { id: requestId },
+          data: { taskId: task.id },
+        });
+        return presentTask(task);
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== 'P2002'
+      )
+        throw error;
+      const existing = await this.prisma.taskCreation.findUnique({
+        where: { id: requestId },
+        include: { task: true },
+      });
+      if (
+        !existing ||
+        existing.userId !== userId ||
+        existing.payloadHash !== hash ||
+        !existing.task
+      )
+        throw new ConflictException(
+          'Cette création a changé ou sa tâche a été supprimée. Ouvrez un nouveau formulaire.',
+        );
+      return presentTask(existing.task);
+    }
   }
 
   async findAllByUser(
@@ -81,7 +133,7 @@ export class TaskService {
       },
     });
 
-    return tasks;
+    return tasks.map(presentTask);
   }
 
   async findOneByUser(id: string, userId: string): Promise<TaskResponseDto> {
@@ -102,7 +154,7 @@ export class TaskService {
 
     // Ne pas retourner les informations de la liste
     const { list: _list, ...taskWithoutList } = task;
-    return taskWithoutList;
+    return presentTask(taskWithoutList);
   }
 
   async updateByUser(
@@ -143,17 +195,30 @@ export class TaskService {
       }
     }
 
-    const { expectedUpdatedAt, ...data } = updateTaskDto;
+    const { expectedUpdatedAt, checklist, ...fields } = updateTaskDto;
+    const checked = checklistSchema.safeParse(checklist ?? []);
+    if (!checked.success)
+      throw new BadRequestException(
+        'Les étapes doivent être valides et leurs identifiants distincts.',
+      );
+    const data = {
+      ...fields,
+      ...(checklist !== undefined
+        ? { checklist: checked.data.map((item) => ({ ...item })) }
+        : {}),
+    };
     try {
-      return await this.prisma.task.update({
-        where: {
-          id,
-          ...(expectedUpdatedAt
-            ? { updatedAt: new Date(expectedUpdatedAt) }
-            : {}),
-        },
-        data,
-      });
+      return presentTask(
+        await this.prisma.task.update({
+          where: {
+            id,
+            ...(expectedUpdatedAt
+              ? { updatedAt: new Date(expectedUpdatedAt) }
+              : {}),
+          },
+          data,
+        }),
+      );
     } catch (error) {
       if (
         expectedUpdatedAt &&

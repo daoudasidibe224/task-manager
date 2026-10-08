@@ -34,11 +34,12 @@ export class AuthController {
 
   @Public()
   @Post('register')
+  @UseInterceptors(AuthCookieInterceptor)
   @ApiOperation({ summary: "Inscription d'un nouvel utilisateur" })
   @ApiResponse({
     status: 201,
     description:
-      'Utilisateur créé avec succès. Utilisez /auth/login pour vous connecter.',
+      'Utilisateur créé et connecté, cookies définis automatiquement.',
   })
   @ApiResponse({ status: 409, description: 'Email déjà utilisé' })
   async register(@Body() registerDto: RegisterDto) {

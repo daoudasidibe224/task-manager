@@ -1,3 +1,4 @@
+import { presentTask } from '../task/task-presenter.js';
 import { Prisma } from '../generated/prisma/client.js';
 import {
   Injectable,
@@ -42,7 +43,7 @@ export class TaskListService {
         tasks: true,
       },
     });
-    return taskList;
+    return { ...taskList, tasks: taskList.tasks.map(presentTask) };
   }
 
   async findAllByUser(userId: string): Promise<TaskListResponseDto[]> {
@@ -56,7 +57,10 @@ export class TaskListService {
       },
     });
 
-    return taskLists;
+    return taskLists.map((list) => ({
+      ...list,
+      tasks: list.tasks.map(presentTask),
+    }));
   }
 
   async findOneByUser(
@@ -82,7 +86,7 @@ export class TaskListService {
       );
     }
 
-    return taskList;
+    return { ...taskList, tasks: taskList.tasks.map(presentTask) };
   }
 
   async updateByUser(
@@ -129,7 +133,7 @@ export class TaskListService {
 
     const { expectedUpdatedAt, ...data } = updateTaskListDto;
     try {
-      return await this.prisma.taskList.update({
+      const updated = await this.prisma.taskList.update({
         where: {
           id,
           ...(expectedUpdatedAt
@@ -139,6 +143,7 @@ export class TaskListService {
         data,
         include: { tasks: true },
       });
+      return { ...updated, tasks: updated.tasks.map(presentTask) };
     } catch (error) {
       if (
         expectedUpdatedAt &&

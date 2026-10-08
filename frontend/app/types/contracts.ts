@@ -8,12 +8,19 @@ export const userSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 export const prioritySchema = z.enum(["LOW", "NORMAL", "HIGH"]);
+export const checklistItemSchema = z.object({
+  id: z.uuid(),
+  text: z.string().min(1).max(200),
+  completed: z.boolean(),
+});
+export type ChecklistItem = z.infer<typeof checklistItemSchema>;
 export const taskSchema = z.object({
   id: z.string(),
   shortDescription: z.string(),
   longDescription: z.string().nullable(),
   dueDate: z.iso.datetime().nullable(),
   completed: z.boolean(),
+  checklist: checklistItemSchema.array().max(20),
   priority: prioritySchema,
   listId: z.string(),
   createdAt: z.iso.datetime(),
@@ -33,6 +40,7 @@ export type Task = z.infer<typeof taskSchema>;
 export type TaskList = z.infer<typeof listSchema>;
 export type Priority = z.infer<typeof prioritySchema>;
 export interface TaskDraft {
+  checklist: ChecklistItem[];
   shortDescription: string;
   longDescription: string;
   dueDate: string;

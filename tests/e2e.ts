@@ -2,7 +2,7 @@ import { chromium, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFile, mkdir } from "node:fs/promises";
+import { readdir, readFile, mkdir } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import assert from "node:assert/strict";
 const adminUrl =
@@ -17,12 +17,15 @@ await admin.connect();
 await admin.query(`CREATE DATABASE "${database}"`);
 const db = new Client({ connectionString: target.toString() });
 await db.connect();
-await db.query(
-  await readFile(
-    "backend/prisma/migrations/20261008163000_initial/migration.sql",
-    "utf8",
-  ),
-);
+for (const migration of (await readdir("backend/prisma/migrations")).sort()) {
+  if (migration === "migration_lock.toml") continue;
+  await db.query(
+    await readFile(
+      `backend/prisma/migrations/${migration}/migration.sql`,
+      "utf8",
+    ),
+  );
+}
 await db.end();
 process.env.DATABASE_URL = target.toString();
 process.env.JWT_SECRET = "e2e-access-secret-at-least-32-characters";
@@ -100,20 +103,27 @@ try {
   await page
     .getByRole("link", { name: "Créer un compte", exact: true })
     .click();
-  await page.getByLabel("Prénom", { exact: true }).fill("Camille");
-  await page.getByLabel("Nom", { exact: true }).fill("Durand");
+  await page.getByLabel("Prénom (facultatif)", { exact: true }).fill("Camille");
   await page.getByLabel("Adresse e-mail").fill("camille@example.test");
   await page.getByLabel("Mot de passe", { exact: true }).fill("GoodPass123");
-  await page.getByLabel("Confirmer le mot de passe").fill("GoodPass123");
   await page
     .getByRole("button", { name: "Créer mon compte", exact: true })
     .click();
+  await expect(page).toHaveURL(/dashboard/);
+  await page
+    .getByRole("button", { name: "Se déconnecter", exact: true })
+    .click();
   await expect(page).toHaveURL(/login/);
-  await expect(page.getByRole("status")).toContainText("Votre compte est créé");
   await page.getByLabel("Adresse e-mail").fill("camille@example.test");
   await page.getByLabel("Mot de passe", { exact: true }).fill("WrongPass123");
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("incorrect");
+  await expect(page.getByRole("alert")).toBeFocused();
+  await page.getByRole("button", { name: "Afficher le mot de passe" }).click();
+  await expect(
+    page.getByLabel("Mot de passe", { exact: true }),
+  ).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Masquer le mot de passe" }).click();
   await page.getByLabel("Mot de passe", { exact: true }).fill("GoodPass123");
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
@@ -142,6 +152,14 @@ try {
   await page.getByLabel("Échéance", { exact: true }).fill("2026-10-08");
   await page.getByLabel("Priorité", { exact: true }).selectOption("HIGH");
   await page
+    .getByLabel("Nouvelle étape", { exact: true })
+    .fill("Rassembler les pièces");
+  await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+  await page
+    .getByLabel("Nouvelle étape", { exact: true })
+    .fill("Relire le dossier");
+  await page.getByLabel("Nouvelle étape", { exact: true }).press("Enter");
+  await page
     .getByRole("button", { name: "Enregistrer la tâche", exact: true })
     .dblclick();
   await expect(
@@ -151,6 +169,98 @@ try {
   await expect(
     page.getByText("Préparer le dossier", { exact: true }),
   ).toBeVisible();
+  await page.locator(".task-checklist summary").click();
+  await page
+    .getByRole("checkbox", {
+      name: "Étape : Rassembler les pièces",
+      exact: true,
+    })
+    .check();
+  await expect(
+    page.getByRole("checkbox", {
+      name: "Étape : Rassembler les pièces",
+      exact: true,
+    }),
+  ).toBeChecked();
+  await page.reload();
+  await page.locator(".task-checklist summary").click();
+  await expect(
+    page.getByRole("checkbox", {
+      name: "Étape : Rassembler les pièces",
+      exact: true,
+    }),
+  ).toBeChecked();
+  await page
+    .getByRole("button", { name: "Copier Préparer le dossier", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Copier la tâche" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Titre", { exact: true })).toHaveValue(
+    "Préparer le dossier (copie)",
+  );
+  await expect(
+    page.getByRole("checkbox", { name: "Terminer l’étape 1", exact: true }),
+  ).not.toBeChecked();
+  await page
+    .getByRole("button", { name: "Enregistrer la tâche", exact: true })
+    .click();
+  await expect(
+    page.getByText("Préparer le dossier (copie)", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Supprimer Préparer le dossier (copie)",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirmer la suppression", exact: true })
+    .click();
+  await expect(
+    page.getByText("Préparer le dossier (copie)", { exact: true }),
+  ).toHaveCount(0);
+  const weeks = await page.evaluate(() => {
+    const current = new Date();
+    const weekday = (current.getDay() + 6) % 7;
+    current.setHours(12, 0, 0, 0);
+    current.setDate(current.getDate() - weekday);
+    const target = new Date(2026, 9, 5, 12);
+    return Math.round((target.getTime() - current.getTime()) / 604800000);
+  });
+  for (let offset = 0; offset < Math.abs(weeks); offset++)
+    await page
+      .getByRole("button", {
+        name: weeks < 0 ? "Semaine précédente" : "Semaine suivante",
+        exact: true,
+      })
+      .click();
+  await page
+    .getByRole("button", { name: "Échéances du 2026-10-08", exact: true })
+    .click();
+  await expect(
+    page.getByText("Préparer le dossier", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Échéances du 2026-10-09", exact: true })
+    .click();
+  await expect(
+    page.getByText("Préparer le dossier", { exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Nouvelle tâche", exact: true })
+    .click();
+  await expect(page.getByLabel("Échéance", { exact: true })).toHaveValue(
+    "2026-10-09",
+  );
+  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Afficher tout l’agenda", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Projet personnel", exact: false })
+    .first()
+    .click();
   await page.getByText("Préparer le dossier", { exact: true }).click();
   await expect(page.getByLabel("Échéance", { exact: true })).toHaveValue(
     "2026-10-08",
@@ -205,9 +315,16 @@ try {
     .getByRole("button", { name: "Nouvelle tâche", exact: true })
     .click();
   await page.getByLabel("Titre", { exact: true }).fill("Brouillon conservé");
-  await page.route("**/api/tasks", (route) =>
-    route.request().method() === "POST" ? route.abort() : route.continue(),
-  );
+  let retryBody = "";
+  await page.route("**/api/tasks", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    retryBody = route.request().postData() ?? "";
+    await route.fetch();
+    await route.abort();
+  });
   await page
     .getByRole("button", { name: "Enregistrer la tâche", exact: true })
     .click();
@@ -218,7 +335,34 @@ try {
     "Brouillon conservé",
   );
   await page.unroute("**/api/tasks");
-  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  const retryRequest = page.waitForRequest(
+    (request) =>
+      request.url().endsWith("/api/tasks") && request.method() === "POST",
+  );
+  await page.getByLabel("Titre", { exact: true }).evaluate((element) => {
+    const form = element.closest("form");
+    if (!(form instanceof HTMLFormElement))
+      throw new Error("Formulaire introuvable");
+    form.requestSubmit();
+    form.requestSubmit();
+  });
+  assert.equal((await retryRequest).postData(), retryBody);
+  await expect(
+    page.getByText("Brouillon conservé", { exact: true }),
+  ).toHaveCount(1);
+  await page.reload();
+  await expect(
+    page.getByText("Brouillon conservé", { exact: true }),
+  ).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Supprimer Brouillon conservé", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirmer la suppression", exact: true })
+    .click();
+  await expect(
+    page.getByText("Brouillon conservé", { exact: true }),
+  ).toHaveCount(0);
   const second = await context.newPage();
   second.on("pageerror", (e) => errors.push(e.message));
   await second.goto("http://127.0.0.1:4512/dashboard");
@@ -272,11 +416,11 @@ try {
     .click();
   const download = await downloadPromise;
   assert.match(download.suggestedFilename(), /mes-taches-.*\.json/);
-  for (const width of [1440, 390, 320]) {
+  for (const width of [1440, 800, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     await checkOverflow(page);
     await screenshot(`workspace-${width}`);
-    if (width < 700) {
+    if (width <= 600) {
       await page
         .getByRole("button", { name: "Ouvrir la navigation", exact: true })
         .click();
@@ -301,16 +445,18 @@ try {
     );
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    if (width < 700)
+    if (width <= 600)
       await page
         .getByRole("button", { name: "Ouvrir la navigation", exact: true })
         .click();
-    await page.getByRole("button", { name: /Camille Durand/ }).click();
+    await page
+      .getByRole("button", { name: "Gérer mon compte", exact: true })
+      .click();
     await checkOverflow(page);
     await screenshot(`profile-${width}`);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    if (width < 700)
+    if (width <= 600)
       await page
         .getByRole("button", { name: "Fermer la navigation", exact: true })
         .click();
@@ -331,7 +477,9 @@ try {
     .click();
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole("button", { name: /Camille Durand/ }).click();
+  await page
+    .getByRole("button", { name: "Gérer mon compte", exact: true })
+    .click();
   await page.getByLabel("Prénom", { exact: true }).fill("Camille Marie");
   await page
     .getByRole("button", { name: "Enregistrer le profil", exact: true })
@@ -362,7 +510,9 @@ try {
   await expect(
     page.getByRole("button", { name: /Projet de candidature/ }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Camille Marie Durand/ }).click();
+  await page
+    .getByRole("button", { name: "Gérer mon compte", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Supprimer mon compte", exact: true })
     .click();
@@ -392,7 +542,7 @@ try {
   await expect(page).toHaveURL(/login/);
   assert.deepEqual(errors, [], "Erreurs JavaScript navigateur");
   console.log(
-    "E2E réussi : vrais comptes/API/PostgreSQL, CRUD, persistance, erreurs réseau, date Auckland, mobile320/390, navigation/dialogues/clavier/export.",
+    "E2E réussi : inscription minimale/session, vrais comptes/API/PostgreSQL, checklist rechargée et cochée, copie éditable, semaine/date préremplie, création avec réponse perdue/reprise unique, CRUD/CAS/refresh deux onglets, date Auckland,1440/800/390/320,navigation/dialogues/clavier/export.",
   );
 } finally {
   await browser.close();

@@ -1,5 +1,9 @@
 import {
   IsBoolean,
+  IsArray,
+  ArrayMaxSize,
+  ValidateNested,
+  IsUUID,
   IsDate,
   IsEnum,
   IsNotEmpty,
@@ -8,10 +12,22 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { ChecklistItemDto } from './checklist.dto.js';
 import { Priority } from '../../generated/prisma/enums.js';
 export class CreateTaskDto {
+  @ApiProperty({ required: false, format: 'uuid' })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsUUID('4')
+  requestId?: string;
+  @ApiProperty({ required: false, type: [ChecklistItemDto], maxItems: 20 })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => ChecklistItemDto)
+  checklist?: ChecklistItemDto[];
   @ApiProperty({ maxLength: 200 })
   @IsString()
   @IsNotEmpty()
