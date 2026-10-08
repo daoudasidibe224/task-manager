@@ -50,7 +50,9 @@ const checkOverflow = async (p: Page) => {
   assert.equal(overflow, false, "Débordement horizontal");
 };
 async function screenshot(name: string) {
+  await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
+    animations: "disabled",
     path: `${screenshots}/task-${name}.png`,
     fullPage: true,
   });
@@ -307,6 +309,7 @@ try {
     await checkOverflow(page);
     await screenshot(`profile-${width}`);
     await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     if (width < 700)
       await page
         .getByRole("button", { name: "Fermer la navigation", exact: true })

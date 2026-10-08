@@ -53,7 +53,21 @@ onMounted(async () => {
 <template>
   <div class="auth-page">
     <NuxtLink class="product-brand" to="/"
-      ><span class="brand-symbol"><UIcon name="i-lucide-list-checks" /></span
+      ><span class="brand-symbol"
+        ><svg
+          width="21"
+          height="21"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="m3 5 2 2 4-4m-6 11 2 2 4-4m4-7h8m-8 9h8M3 21h18"
+          /></svg></span
       >Mes listes de tâches</NuxtLink
     >
     <main class="auth-grid">

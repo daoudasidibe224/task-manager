@@ -38,7 +38,10 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
-      - run: npm audit --audit-level=critical
+      - name: Audit npm et limite connue
+        run: |
+          npm audit --audit-level=critical
+          echo "::warning title=Audit npm non vierge::braces 3.0.3 et node-forge 1.4.0 restent concernés par deux avis hauts sans correctif stable publié. Voir README."
       - uses: actions/upload-artifact@v4
         if: always()
         with:

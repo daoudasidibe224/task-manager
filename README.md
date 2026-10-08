@@ -71,6 +71,17 @@ L’export JSON permet de lire ou conserver une copie des tâches ; l’import d
 
 Le projet n’est pas déployé. Pour une exposition publique, configurer HTTPS, `NODE_ENV=production`, l’origine exacte du client, de nouveaux secrets et une base protégée. Les cookies deviennent alors Secure. La base locale du Compose et ses identifiants ne constituent pas une configuration de production.
 
-L’audit npm conserve deux avis sans version stable corrigée : [braces, récursion profonde](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) et [node-forge, vérification RSA](https://github.com/advisories/GHSA-86w9-cpqp-85rv). Ils proviennent de Nitro via les outils de Nuxt, même avec DevTools désactivé : globby → micromatch → braces et listhen → node-forge. L’application ne reçoit pas de motifs glob utilisateurs et n’emploie pas les certificats HTTPS générés par listhen. Ces chemins ne sont pas utilisés par l’API NestJS. Le graphe reste signalé par npm ; l’audit ne doit pas être présenté comme vierge. Les mises à jour stables forcées par `overrides` corrigent les autres avis connus sans installer de préversion.
+Au 8 octobre 2026, `npm audit` signale **11 dépendances avec une sévérité haute et aucune critique**, provenant de deux avis sans correctif stable publié :
+
+| Avis | Version installée et chemin | Portée observée |
+| --- | --- | --- |
+| [braces, récursion profonde](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | braces 3.0.3 ; Nuxt 4.6.0 → Nitro 2.13.4 → globby 16.2.4 → micromatch 4.0.8 | Traitement des motifs de fichiers dans l’outillage Nuxt. Aucun motif glob n’est fourni par les formulaires de l’application. |
+| [node-forge, vérification RSA](https://github.com/advisories/GHSA-86w9-cpqp-85rv) | node-forge 1.4.0 ; Nitro 2.13.4 → listhen 1.10.1 | Génération de certificats dans l’outillage. Le serveur local emploie HTTP sur 127.0.0.1 et n’utilise pas cette génération HTTPS. |
+
+Les avis officiels indiquent l’absence de version corrigée. Le registre npm donne ces versions comme dernières stables, ainsi que Nitro 2.13.4 et listhen 1.10.1. Désactiver DevTools ne retire pas ces dépendances de Nuxt. Un retour à une version plus ancienne ne fournit pas de correctif identifié ; aucun remplacement incompatible ni préversion n’est installé pour modifier le résultat de l’audit.
+
+L’audit complet et `npm audit --omit=dev` restent tous deux à **11 hautes / 0 critiques** : Nuxt déclare cet outillage dans son arbre de dépendances. En revanche, `npm audit --omit=dev --workspace=backend` donne **0 avis** pour l’API NestJS. Le manifeste de l’artefact Nuxt compilé ne contient ni braces ni node-forge. Cette séparation et les usages décrits limitent les chemins exposés ; elles ne résolvent pas les deux avis dans l’installation du dépôt.
+
+Les `overrides` vers simple-git 4.0.2, @simple-git/argv-parser 2.0.1, mysql2 3.24.5, deepmerge-ts 8.0.2 et esbuild 0.28.2 corrigent les autres avis connus. Leur compatibilité a été vérifiée par une installation neuve, génération Prisma, migrations, types, compilations et parcours complets. La CI bloque les avis critiques, tout en affichant la limite haute restante ; **l’audit ne doit pas être présenté comme vierge**.
 
 Les migrations suivent les guides [Nuxt 4](https://nuxt.com/docs/4.x/getting-started/upgrade), [Nuxt UI](https://ui.nuxt.com/docs/getting-started/installation/nuxt), [NestJS 12](https://docs.nestjs.com/migration-guide) et [Prisma 7](https://www.prisma.io/docs/orm/more/upgrade-guides/upgrading-versions/upgrading-to-prisma-7). Prisma 8 était une préversion au moment de la migration et n’a pas été retenu.
