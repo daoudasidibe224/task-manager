@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { announceTaskSession } from "~/utils/session";
 import { z } from "zod";
 import { userSchema, type Task, type TaskList } from "~/types/contracts";
 useHead({ title: "Mon espace · Mes listes de tâches" });
@@ -264,6 +265,7 @@ async function removeConfirmed() {
         w.user.value = null;
         w.lists.value = [];
         w.loaded.value = false;
+        announceTaskSession("ended");
         await navigateTo("/login");
       }
     }, "Suppression effectuée.")
@@ -287,17 +289,23 @@ function exportData() {
   URL.revokeObjectURL(url);
   notice.value = "Export téléchargé. Conservez ce fichier dans un endroit sûr.";
 }
-onMounted(async () => {
+async function initialize() {
   try {
     await w.load();
     if (!w.user.value) await navigateTo("/login");
   } catch {
     /* The visible error offers a retry. */
   }
-});
+}
+onMounted(initialize);
 </script>
 <template>
-  <div class="workspace">
+  <div v-if="!w.user.value" class="loading-screen">
+    <p v-if="w.error.value" role="alert">{{ w.error.value }}</p>
+    <p v-else>Ouverture de votre espace…</p>
+    <button v-if="w.error.value" @click="initialize">Réessayer</button>
+  </div>
+  <div v-else class="workspace">
     <div v-if="navOpen" class="nav-overlay" @click="navOpen = false" />
     <header class="agenda-masthead">
       <span>{{

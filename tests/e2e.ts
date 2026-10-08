@@ -94,7 +94,11 @@ try {
     await delay(500);
   }
   assert.ok(ready, "Frontend disponible");
-  await page.goto("http://127.0.0.1:4512/login");
+  await page.goto("http://127.0.0.1:4512/dashboard");
+  await expect(page).toHaveURL(/login/);
+  await expect(
+    page.getByRole("button", { name: "Se déconnecter", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Se connecter" }),
   ).toBeVisible();
@@ -102,6 +106,9 @@ try {
   await expect(page.getByRole("alert")).toHaveCount(0);
   await page
     .getByRole("link", { name: "Créer un compte", exact: true })
+    .click();
+  await page
+    .getByText("Choisir un prénom (facultatif)", { exact: true })
     .click();
   await page.getByLabel("Prénom (facultatif)", { exact: true }).fill("Camille");
   await page.getByLabel("Adresse e-mail").fill("camille@example.test");
@@ -416,6 +423,11 @@ try {
     page.getByText("Modification onglet B", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: /Vue d’ensemble/ }).click();
+  await expect(page).toHaveURL(/view=all/);
+  await second.getByRole("button", { name: /Vue d’ensemble/ }).click();
+  await expect(
+    second.getByRole("heading", { name: "Vue d’ensemble", exact: true }),
+  ).toBeVisible();
   const stored = await context.cookies();
   const access = stored.find((c) => c.name === "accessToken");
   assert.ok(access);
@@ -427,6 +439,155 @@ try {
   await expect(
     second.getByRole("heading", { name: "Vue d’ensemble", exact: true }),
   ).toBeVisible();
+  console.log("stale mutation401 / account replacement");
+  const accountBContext = await browser.newContext();
+  const signupB = await accountBContext.request.post(
+    "http://127.0.0.1:5012/api/auth/register",
+    {
+      data: {
+        firstname: "CompteB",
+        email: "b@example.test",
+        password: "GoodPass123",
+      },
+    },
+  );
+  assert.equal(signupB.status(), 201);
+  const accountBEnvelope = await signupB.json();
+  await accountBContext.close();
+  let releaseStale: () => void = () => {};
+  const staleGate = new Promise<void>((resolve) => {
+    releaseStale = resolve;
+  });
+  let notifyStale: () => void = () => {};
+  const staleStarted = new Promise<void>((resolve) => {
+    notifyStale = resolve;
+  });
+  let mutationRequests = 0;
+  await page.route("**/api/task-lists", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    mutationRequests++;
+    notifyStale();
+    await staleGate;
+    await route.fulfill({
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "http://127.0.0.1:4512",
+        "Access-Control-Allow-Credentials": "true",
+      },
+      body: JSON.stringify({ success: false, message: "Session expirée." }),
+    });
+  });
+  await page
+    .getByRole("button", { name: "Créer une liste", exact: true })
+    .click();
+  await page
+    .getByLabel("Nom de la liste", { exact: true })
+    .fill("Ancienne intention du compte A");
+  await page
+    .getByRole("button", { name: "Enregistrer la liste", exact: true })
+    .click();
+  await Promise.race([
+    staleStarted,
+    new Promise<void>((_, reject) =>
+      setTimeout(() => {
+        releaseStale();
+        reject(Error("La mutation retardée n’a pas démarré."));
+      }, 10000),
+    ),
+  ]);
+  let releaseOldProfile: () => void = () => {};
+  const oldProfileGate = new Promise<void>((resolve) => {
+    releaseOldProfile = resolve;
+  });
+  let oldProfileStarted: () => void = () => {};
+  const oldProfilePending = new Promise<void>((resolve) => {
+    oldProfileStarted = resolve;
+  });
+  let oldProfileHeld = false;
+  await page.route("**/api/auth/profile", async (route) => {
+    if (oldProfileHeld) {
+      await route.continue();
+      return;
+    }
+    oldProfileHeld = true;
+    const response = await route.fetch();
+    assert.equal(response.status(), 200);
+    oldProfileStarted();
+    await oldProfileGate;
+    await route.fulfill({ response });
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await Promise.race([
+    oldProfilePending,
+    new Promise<void>((_, reject) =>
+      setTimeout(() => {
+        releaseOldProfile();
+        releaseStale();
+        reject(Error("La vérification de compte retardée n’a pas démarré."));
+      }, 10000),
+    ),
+  ]);
+  const loginB = await context.request.post(
+    "http://127.0.0.1:5012/api/auth/login",
+    { data: { email: "b@example.test", password: "GoodPass123" } },
+  );
+  assert.equal(loginB.status(), 200);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  releaseOldProfile();
+  await expect(
+    page.getByText("Bonjour CompteB", { exact: true }),
+  ).toBeVisible();
+  await page.unroute("**/api/auth/profile");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Projet de candidature/ }),
+  ).toHaveCount(0);
+  await second.bringToFront();
+  await second.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(
+    second.getByText("Bonjour CompteB", { exact: true }),
+  ).toBeVisible();
+  releaseStale();
+  await delay(300);
+  assert.equal(mutationRequests, 1);
+  await page.unroute("**/api/task-lists");
+  const listsB = await context.request.get(
+    "http://127.0.0.1:5012/api/task-lists",
+  );
+  assert.equal(listsB.status(), 200);
+  assert.deepEqual((await listsB.json()).data, []);
+  await context.request.delete(
+    `http://127.0.0.1:5012/api/user/${accountBEnvelope.data.user.id}`,
+  );
+  await page.bringToFront();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page).toHaveURL(/login/);
+  await page.getByLabel("Adresse e-mail").fill("camille@example.test");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("GoodPass123");
+  await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await second.bringToFront();
+  await second.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(second).toHaveURL(/dashboard/);
+  await page
+    .getByRole("button", { name: "Se déconnecter", exact: true })
+    .click();
+  await expect(page).toHaveURL(/login/);
+  await expect(second).toHaveURL(/login/);
+  await expect(
+    second.getByRole("button", { name: "Se déconnecter", exact: true }),
+  ).toHaveCount(0);
+  await page.getByLabel("Adresse e-mail").fill("camille@example.test");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("GoodPass123");
+  await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await second.bringToFront();
+  await second.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(second).toHaveURL(/dashboard/);
   await second.close();
   const downloadPromise = page.waitForEvent("download");
   await page
@@ -547,6 +708,16 @@ try {
       .click();
     await checkOverflow(page);
     await screenshot(`register-${width}`);
+    const createButton = await page
+      .getByRole("button", { name: "Créer mon compte", exact: true })
+      .boundingBox();
+    assert.ok(
+      createButton && createButton.y + createButton.height < 900,
+      "Inscription visible première vue",
+    );
+    await expect(
+      page.getByLabel("Prénom (facultatif)", { exact: true }),
+    ).toBeHidden();
     await page.getByRole("link", { name: "Se connecter", exact: true }).click();
   }
   await page.goto("http://127.0.0.1:4512/page-absente");
@@ -560,7 +731,7 @@ try {
   await expect(page).toHaveURL(/login/);
   assert.deepEqual(errors, [], "Erreurs JavaScript navigateur");
   console.log(
-    "E2E réussi : inscription minimale/session, vrais comptes/API/PostgreSQL, checklist rechargée et cochée, copie éditable, semaine/date préremplie, création avec réponse perdue/reprise unique, CRUD/CAS/refresh deux onglets, date Auckland,1440/800/390/320,navigation/dialogues/clavier/export.",
+    "E2E réussi : inscription minimale/session, vrais comptes/API/PostgreSQL, checklist rechargée et cochée, copie éditable, semaine/date préremplie, création avec réponse perdue/reprise unique, CRUD/CAS/refresh deux onglets, logout/login2onglets, visiteur sans menusprivés, remplacementcompte et mutation401 ancienne nonrejouée, prénomreplié/premièrevue, date Auckland,1440/800/390/320,navigation/dialogues/clavier/export.",
   );
 } finally {
   await browser.close();

@@ -1,3 +1,8 @@
+import {
+  advanceTaskSessionEpoch,
+  taskSessionEpoch,
+  announceTaskSession,
+} from "~/utils/session";
 import { z } from "zod";
 import {
   listSchema,
@@ -16,6 +21,7 @@ export function useWorkspace() {
   const loading = ref(false);
   const error = ref("");
   async function load() {
+    const epoch = taskSessionEpoch();
     loading.value = true;
     error.value = "";
     try {
@@ -23,10 +29,13 @@ export function useWorkspace() {
         api.send("auth/profile", profileSchema),
         api.send("task-lists", listSchema.array()),
       ]);
+      if (epoch !== taskSessionEpoch()) return;
+      if (user.value?.id !== profile.user.id) advanceTaskSessionEpoch();
       user.value = profile.user;
       lists.value = data;
       loaded.value = true;
     } catch (cause) {
+      if (epoch !== taskSessionEpoch()) return;
       if (unauthorized(cause)) {
         user.value = null;
         lists.value = [];
@@ -40,15 +49,19 @@ export function useWorkspace() {
     }
   }
   async function login(credentials: { email: string; password: string }) {
+    const epoch = advanceTaskSessionEpoch();
     const profile = await api.send(
       "auth/login",
       profileSchema,
       "POST",
       credentials,
     );
+    if (epoch !== taskSessionEpoch()) return;
     user.value = profile.user;
     loaded.value = true;
     await load();
+    if (epoch !== taskSessionEpoch()) return;
+    announceTaskSession("changed");
     await navigateTo("/dashboard");
   }
   async function register(credentials: {
@@ -56,15 +69,19 @@ export function useWorkspace() {
     password: string;
     firstname?: string;
   }) {
+    const epoch = advanceTaskSessionEpoch();
     const profile = await api.send(
       "auth/register",
       profileSchema,
       "POST",
       credentials,
     );
+    if (epoch !== taskSessionEpoch()) return;
     user.value = profile.user;
     loaded.value = true;
     await load();
+    if (epoch !== taskSessionEpoch()) return;
+    announceTaskSession("changed");
     await navigateTo("/dashboard");
   }
   async function updateChecklist(task: Task, id: string, completed: boolean) {
@@ -81,6 +98,7 @@ export function useWorkspace() {
     user.value = null;
     lists.value = [];
     loaded.value = false;
+    announceTaskSession("ended");
     await navigateTo("/login");
   }
   async function createList(name: string) {

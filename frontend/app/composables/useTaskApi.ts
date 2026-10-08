@@ -1,3 +1,4 @@
+import { taskSessionEpoch, announceTaskSession } from "~/utils/session";
 import { z } from "zod";
 import { FetchError } from "ofetch";
 const envelope = z.object({
@@ -20,7 +21,17 @@ export function messageFrom(error: unknown): string {
 export function unauthorized(error: unknown) {
   return error instanceof FetchError && error.response?.status === 401;
 }
-const renewals = new WeakMap<object, Promise<void>>();
+class SessionChangedError extends Error {
+  constructor() {
+    super(
+      "Votre session a changé. Cette demande n’a pas été réessayée. Reprenez-la depuis votre compte actuel.",
+    );
+  }
+}
+const renewals = new WeakMap<
+  object,
+  { epoch: number; promise: Promise<void> }
+>();
 export function useTaskApi() {
   const config = useRuntimeConfig();
   const instance = useNuxtApp();
@@ -46,47 +57,75 @@ export function useTaskApi() {
     method: "GET" | "POST" | "PATCH" | "DELETE" = "GET",
     body?: unknown,
   ): Promise<T> {
+    const epoch = taskSessionEpoch();
+    function ensureSession() {
+      if (epoch !== taskSessionEpoch()) throw new SessionChangedError();
+    }
+    function ended(error: unknown) {
+      if (unauthorized(error) && epoch === taskSessionEpoch())
+        announceTaskSession("ended");
+    }
     let payload: unknown;
     try {
       payload = await raw(path, method, body);
     } catch (error) {
+      ensureSession();
       if (
         !unauthorized(error) ||
         ["auth/login", "auth/register", "auth/refresh"].includes(path)
       )
         throw error;
       let renewal = renewals.get(instance);
-      if (!renewal) {
+      if (!renewal || renewal.epoch !== epoch) {
         const refresh = async () => {
+          ensureSession();
           try {
             await raw("auth/profile", "GET");
+            ensureSession();
             return;
           } catch (profileError) {
+            ensureSession();
             if (!unauthorized(profileError)) throw profileError;
           }
+          ensureSession();
           await raw("auth/refresh", "POST");
+          ensureSession();
         };
-        renewal = (
+        const promise = (
           typeof navigator !== "undefined" && navigator.locks
             ? navigator.locks.request("mes-taches-session-renewal", refresh)
             : refresh()
         ).finally(() => {
-          renewals.delete(instance);
+          if (renewals.get(instance)?.promise === promise)
+            renewals.delete(instance);
         });
+        renewal = { epoch, promise };
         renewals.set(instance, renewal);
       }
       try {
-        await renewal;
+        await renewal.promise;
+        ensureSession();
       } catch (refreshError) {
+        ensureSession();
         if (
           refreshError instanceof FetchError &&
           [400, 401].includes(refreshError.response?.status ?? 0)
-        )
+        ) {
+          ended(error);
           throw error;
+        }
         throw refreshError;
       }
-      payload = await raw(path, method, body);
+      ensureSession();
+      try {
+        payload = await raw(path, method, body);
+      } catch (error) {
+        ensureSession();
+        ended(error);
+        throw error;
+      }
     }
+    ensureSession();
     const response = envelope.parse(payload);
     if (!response.success) throw new Error(response.message);
     return schema.parse(response.data);

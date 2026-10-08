@@ -6,6 +6,7 @@ const fields = reactive({
   email: "",
   password: "",
 });
+const ready = ref(false);
 const errorTarget = ref<HTMLParagraphElement>();
 const busy = ref(false),
   error = ref(""),
@@ -39,11 +40,16 @@ onMounted(async () => {
     if (workspace.user.value) await navigateTo("/dashboard");
   } catch (cause) {
     error.value = messageFrom(cause);
+  } finally {
+    ready.value = true;
   }
 });
 </script>
 <template>
-  <div class="auth-page">
+  <p v-if="!ready || workspace.user.value" class="loading-screen" role="status">
+    Ouverture de votre espace…
+  </p>
+  <div v-else class="auth-page">
     <NuxtLink class="product-brand" to="/"
       ><span class="brand-symbol"
         ><svg
@@ -116,15 +122,18 @@ onMounted(async () => {
           <p v-if="register" class="field-hint">
             Au moins 8 caractères, une majuscule, une minuscule et un chiffre.
           </p>
-          <label v-if="register" for="firstname"
-            >Prénom (facultatif)<input
-              id="firstname"
-              v-model="fields.firstname"
-              autocomplete="given-name"
-              maxlength="50"
-              :disabled="busy"
-              placeholder="À compléter plus tard si vous préférez"
-          /></label>
+          <details v-if="register">
+            <summary>Choisir un prénom (facultatif)</summary>
+            <label for="firstname"
+              >Prénom (facultatif)<input
+                id="firstname"
+                v-model="fields.firstname"
+                autocomplete="given-name"
+                maxlength="50"
+                :disabled="busy"
+                placeholder="À compléter plus tard si vous préférez"
+            /></label>
+          </details>
           <p
             v-if="error"
             ref="errorTarget"
