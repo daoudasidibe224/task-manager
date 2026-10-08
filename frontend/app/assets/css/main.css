@@ -623,7 +623,9 @@ input {
   overflow-wrap: anywhere;
 }
 .task-meta > span:last-child {
-  width: 54px;
+  width: 70px;
+  white-space: nowrap;
+  flex-shrink: 0;
   justify-content: center;
   padding: 3px 5px;
   border: 1px solid #e2e3e9;
