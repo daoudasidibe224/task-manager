@@ -1,0 +1,79 @@
+{
+  "packages": {
+    "braces": "3.0.3",
+    "node-forge": "1.4.0"
+  },
+  "files": [
+    {
+      "file": "braces/lib/parse.js",
+      "original": "e572166565f15fa6ad9865ae49d678218e32aabfd1b3720f6d0d43d39800d310",
+      "patched": "5494275c5394749c752bf72e1822fac1056867f7683807adf5b159b703e29ce6",
+      "changes": [
+        {
+          "before": "    if (value === CHAR_LEFT_PARENTHESES) {",
+          "after": "    if (value === CHAR_LEFT_PARENTHESES) {\n      if (stack.length > 128) throw new SyntaxError('Brace AST exceeds maximum nesting depth (128)');"
+        },
+        {
+          "before": "    if (value === CHAR_LEFT_CURLY_BRACE) {",
+          "after": "    if (value === CHAR_LEFT_CURLY_BRACE) {\n      if (stack.length > 128) throw new SyntaxError('Brace AST exceeds maximum nesting depth (128)');"
+        }
+      ]
+    },
+    {
+      "file": "braces/lib/compile.js",
+      "original": "dc98f22eee3d511785d92a00758d5f0d48efed5f5813bdecc2de430c529b5c9f",
+      "patched": "27c5ef2def0509d0eddae748f797df5050aa0efe178110f7c007d543c5221700",
+      "changes": [
+        {
+          "before": "  const walk = (node, parent = {}) => {",
+          "after": "  const walk = (node, parent = {}, nesting = 0) => {\n    if (nesting > 128) throw new SyntaxError('Brace AST exceeds maximum nesting depth (128)');"
+        },
+        {
+          "before": "output += walk(child, node);",
+          "after": "output += walk(child, node, nesting + 1);"
+        }
+      ]
+    },
+    {
+      "file": "braces/lib/expand.js",
+      "original": "41ccc196ebfa7b7781a634e721eb744e4e7bcb54cba427a7e3d6806a1b9e58f7",
+      "patched": "618986dce5aa1a63a72f459ee6a26e70278bc1a7c6f30c3812a998595d231af5",
+      "changes": [
+        {
+          "before": "  const walk = (node, parent = {}) => {",
+          "after": "  const walk = (node, parent = {}, nesting = 0) => {\n    if (nesting > 128) throw new SyntaxError('Brace AST exceeds maximum nesting depth (128)');"
+        },
+        {
+          "before": "walk(child, node);",
+          "after": "walk(child, node, nesting + 1);"
+        }
+      ]
+    },
+    {
+      "file": "braces/lib/stringify.js",
+      "original": "379f22d77bfa1478341ccd49c5e4267464aabcbba03558bab332aac23fc6f23a",
+      "patched": "1810bbde48b9896376a1ba51193a305d3fa9a9b16f1b66fab31699e64fc9ac99",
+      "changes": [
+        {
+          "before": "  const stringify = (node, parent = {}) => {",
+          "after": "  const stringify = (node, parent = {}, nesting = 0) => {\n    if (nesting > 128) throw new SyntaxError('Brace AST exceeds maximum nesting depth (128)');"
+        },
+        {
+          "before": "output += stringify(child);",
+          "after": "output += stringify(child, {}, nesting + 1);"
+        }
+      ]
+    },
+    {
+      "file": "node-forge/lib/rsa.js",
+      "original": "fd4740238145ec26470eb3f06a627c72039538ce1307dbdce40521f94dfd0a50",
+      "patched": "ff1d46675dbf07c80b438381c0a41b9b16ae3d4c84d103b1e9f067ad4a9c00fe",
+      "changes": [
+        {
+          "before": "            obj.value.length !== 2) {",
+          "after": "            obj.value.length !== 2 ||\n            obj.value[0].value.length !==\n              (('parameters' in capture) ? 2 : 1) ||\n            ('parameters' in capture && capture.parameters !== '')) {"
+        }
+      ]
+    }
+  ]
+}

@@ -22,7 +22,11 @@
     "configure": "node scripts/configure.ts",
     "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run e2e",
     "test:compat": "node --test tests/devtools-compat.test.ts",
-    "patch:devtools": "node scripts/patch-devtools.ts"
+    "patch:devtools": "node scripts/patch-devtools.ts",
+    "postinstall": "node scripts/patch-dependencies.ts && node scripts/patch-devtools.ts",
+    "patch:dependencies": "node scripts/patch-dependencies.ts",
+    "test:security": "node --test tests/dependency-security.test.ts",
+    "audit:verified": "node scripts/audit-dependencies.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
@@ -42,7 +46,9 @@
     "deepmerge-ts": "8.0.2",
     "esbuild": "0.28.2",
     "@nuxt/devtools": "3.4.2",
-    "simple-git": "4.0.2"
+    "simple-git": "4.0.2",
+    "braces": "3.0.3",
+    "node-forge": "1.4.0"
   },
   "type": "module"
 }

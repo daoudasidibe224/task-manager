@@ -1,7 +1,8 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY . .
-RUN npm ci && node scripts/patch-devtools.ts && node --input-type=module -e "await import('./node_modules/@nuxt/devtools/dist/chunks/module-main.mjs')"
+RUN npm ci && node scripts/patch-dependencies.ts && node scripts/patch-devtools.ts && node --input-type=module -e "await import('./node_modules/@nuxt/devtools/dist/chunks/module-main.mjs')"
+RUN npm run test:security
 RUN npm run db:generate && npm run build -w backend
 ENV NUXT_PUBLIC_API_BASE_URL=/api
 RUN npm run generate -w frontend

@@ -9,7 +9,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview --host 127.0.0.1 --port 4312",
     "typecheck": "nuxt typecheck",
-    "postinstall": "node ../scripts/patch-devtools.ts && nuxt prepare"
+    "postinstall": "node ../scripts/patch-dependencies.ts && node ../scripts/patch-devtools.ts && nuxt prepare"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

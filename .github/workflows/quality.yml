@@ -30,8 +30,10 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - run: npm run patch:dependencies
       - run: npm run patch:devtools
       - run: npm run test:compat
+      - run: npm run test:security
       - run: npm run db:generate
       - run: npm run db:migrate
       - run: npm run lint
@@ -41,10 +43,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
       - run: docker build -t mes-listes-de-taches:ci .
-      - name: Audit npm et limite connue
-        run: |
-          npm audit --audit-level=critical
-          echo "::warning title=Audit npm non vierge::braces 3.0.3 et node-forge 1.4.0 restent concernés par deux avis hauts sans correctif stable publié. Voir README."
+      - name: Audit npm et mitigations vérifiées
+        run: npm run audit:verified
       - uses: actions/upload-artifact@v4
         if: always()
         with:
