@@ -6,7 +6,7 @@ services:
     plan: free
     region: frankfurt
     repo: https://github.com/daoudasidibe224/mes-listes-de-taches
-    branch: improve/public-2026-10
+    branch: develop
     autoDeployTrigger: off
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/ready
